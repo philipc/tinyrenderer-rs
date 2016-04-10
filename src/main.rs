@@ -513,19 +513,65 @@ const TGAColor red   = TGAColor(255, 0,   0,   255);
 
 
 
+impl TgaImage {
+	fn line(&mut self, mut x0: usize, mut y0: usize, mut x1: usize, mut y1: usize, color: &TgaColor) {
+		let mut dx = if x0 > x1 { x0 - x1 } else { x1 - x0 };
+		let mut dy = if y0 > y1 { y0 - y1 } else { y1 - y0 };
+		let steep = dy > dx;
+		if steep {
+			std::mem::swap(&mut x0, &mut y0);
+			std::mem::swap(&mut x1, &mut y1);
+			std::mem::swap(&mut dx, &mut dy);
+		};
+		if x0 > x1 {
+			std::mem::swap(&mut x0, &mut x1);
+			std::mem::swap(&mut y0, &mut y1);
+		}
+		let mut x = x0;
+		let mut y = y0;
+		let mut d = dx;
+		loop {
+			if steep {
+				self.set(y, x, color);
+			} else {
+				self.set(x, y, color);
+			}
+			if x == x1 {
+				break;
+			}
+			x += 1;
+			d += 2 * dy;
+			if d > 2 * dx {
+				if y0 < y1 {
+					y += 1;
+				} else {
+					y -= 1;
+				}
+				d -= 2 * dx;
+			}
+		}
+	}
+}
 
 fn main() {
-	let red = TgaColor::new(255, 0, 0, 255);
+	let white = &TgaColor::new(255, 255, 255, 255);
+	let red = &TgaColor::new(255, 0, 0, 255);
 
 	let path = Path::new("output.tga");
 
 	let mut image = TgaImage::new(100, 100, TgaFormat::RGB);
-	image.set(10, 10, &red);
+	image.line(13, 20, 80, 40, white);
+	image.line(20, 13, 40, 80, red);
+	image.line(85, 45, 18, 25, white);
+	image.line(45, 85, 25, 18, red);
+	image.line(30, 30, 70, 70, white);
+	image.line(30, 70, 70, 30, red);
 	image.flip_vertically();
-	image.flip_horizontally();
 	image.write(path, true).unwrap();
 
+	/*
 	let reader = File::open(path).unwrap();
 	let reader = BufReader::new(reader);
 	image::load(reader, image::ImageFormat::TGA).unwrap();
+	*/
 }
