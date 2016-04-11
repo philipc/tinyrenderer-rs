@@ -1,3 +1,5 @@
+use tga;
+
 use std::fs::File;
 use std::io;
 use std::io::BufReader;
@@ -127,6 +129,24 @@ impl Model {
 
         pub fn faces(&self) -> &Vec<Vec<usize>> {
                 &self.faces
+        }
+
+        pub fn line(&self, image: &mut tga::TgaImage, x: usize, y: usize, w: usize, h: usize, color: &tga::TgaColor) {
+                let width = w as f64;
+                let height = h as f64;
+
+                for face in &self.faces {
+                        for (i, idx0) in face.iter().enumerate() {
+                                let idx1 = face.get(i + 1).unwrap_or(face.first().unwrap());
+                                let v0 = &self.verts[*idx0];
+                                let v1 = &self.verts[*idx1];
+                                let x0 = x + ((v0.x + 1f64) * width / 2f64) as usize;
+                                let y0 = y + ((v0.y + 1f64) * width / 2f64) as usize;
+                                let x1 = x + ((v1.x + 1f64) * width / 2f64) as usize;
+                                let y1 = y + ((v1.y + 1f64) * width / 2f64) as usize;
+                                image.line(x0, y0, x1, y1, color);
+                        }
+                }
         }
 }
 

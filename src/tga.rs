@@ -200,6 +200,14 @@ impl TgaImage {
 			format: format,
 		}
 	}
+
+	pub fn get_width(&self) -> usize {
+		self.width
+	}
+
+	pub fn get_height(&self) -> usize {
+		self.height
+	}
 }
 
 /*
@@ -513,7 +521,10 @@ const TGAColor red   = TGAColor(255, 0,   0,   255);
 
 
 impl TgaImage {
-	pub fn line(&mut self, mut x0: usize, mut y0: usize, mut x1: usize, mut y1: usize, color: &TgaColor) {
+	pub fn line(&mut self,
+		    mut x0: usize, mut y0: usize,
+		    mut x1: usize, mut y1: usize,
+		    color: &TgaColor) {
 		let mut dx = if x0 > x1 { x0 - x1 } else { x1 - x0 };
 		let mut dy = if y0 > y1 { y0 - y1 } else { y1 - y0 };
 		let steep = dy > dx;
