@@ -620,6 +620,7 @@ impl TgaImage {
 		}
 	}
 
+	// FIXME: still buggy
 	pub fn fill(&mut self,
 		    mut x0: i32, mut y0: i32,
 		    mut x1: i32, mut y1: i32,

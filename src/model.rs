@@ -7,6 +7,7 @@ use std::io::BufRead;
 use std::num;
 use std::path::Path;
 use std::str;
+use std::ops;
 
 #[derive(Debug)]
 pub enum ModelError {
@@ -38,12 +39,47 @@ pub struct Vec3<T> {
 	pub z: T,
 }
 
-impl<T> Vec3<T> {
+impl<T> Vec3<T> where T: Copy + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<T, Output = T> + ops::Div<T, Output = T> {
 	pub fn new(x: T, y: T, z: T) -> Self {
 		Vec3 {
 			x: x,
 			y: y,
 			z: z,
+		}
+	}
+
+	pub fn sub(&self, v: &Vec3<T>) -> Self {
+		Vec3 {
+			x: self.x - v.x,
+			y: self.y - v.y,
+			z: self.z - v.z,
+		}
+	}
+
+	pub fn dot(&self, v: &Vec3<T>) -> T {
+		self.x * v.x + self.y * v.y + self.z * v.z
+	}
+
+	pub fn cross(&self, v: &Vec3<T>) -> Self {
+		Vec3 {
+			x: self.y * v.z - self.z * v.y,
+			y: self.z * v.x - self.x * v.z,
+			z: self.x * v.y - self.y * v.x,
+		}
+	}
+}
+
+impl Vec3<f64> {
+	pub fn norm(&self) -> f64 {
+		(self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
+	}
+
+	pub fn normalize(&mut self) -> Self {
+		let n = self.norm();
+		Vec3 {
+			x: self.x / n,
+			y: self.y / n,
+			z: self.z / n,
 		}
 	}
 }
@@ -141,11 +177,39 @@ impl Model {
 				let v0 = &self.verts[*idx0];
 				let v1 = &self.verts[*idx1];
 				let x0 = x + ((v0.x + 1f64) * width / 2f64) as i32;
-				let y0 = y + ((v0.y + 1f64) * width / 2f64) as i32;
+				let y0 = y + ((v0.y + 1f64) * height / 2f64) as i32;
 				let x1 = x + ((v1.x + 1f64) * width / 2f64) as i32;
-				let y1 = y + ((v1.y + 1f64) * width / 2f64) as i32;
+				let y1 = y + ((v1.y + 1f64) * height / 2f64) as i32;
 				image.line(x0, y0, x1, y1, color);
 			}
+		}
+	}
+
+	pub fn fill(&self, image: &mut tga::TgaImage, x: i32, y: i32, w: usize, h: usize) {
+		let light_dir = Vec3::new(0f64, 0f64, -1f64);
+		let width = w as f64;
+		let height = h as f64;
+
+		for face in &self.faces {
+			let v0 = &self.verts[face[0]];
+			let v1 = &self.verts[face[1]];
+			let v2 = &self.verts[face[2]];
+
+			let intensity = (&v2.sub(v0)).cross(&v1.sub(v0)).normalize().dot(&light_dir);
+			if intensity <= 0f64 {
+				continue;
+			}
+			let intensity = (intensity * 255f64) as u8;
+			let color = tga::TgaColor::new(intensity, intensity, intensity, 255);
+
+			let x0 = x + ((v0.x + 1f64) * width / 2f64) as i32;
+			let y0 = y + ((v0.y + 1f64) * height / 2f64) as i32;
+			let x1 = x + ((v1.x + 1f64) * width / 2f64) as i32;
+			let y1 = y + ((v1.y + 1f64) * height / 2f64) as i32;
+			let x2 = x + ((v2.x + 1f64) * width / 2f64) as i32;
+			let y2 = y + ((v2.y + 1f64) * height / 2f64) as i32;
+
+			image.fill2(x0, y0, x1, y1, x2, y2, &color);
 		}
 	}
 }
