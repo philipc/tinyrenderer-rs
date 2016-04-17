@@ -131,7 +131,7 @@ impl Model {
                 &self.faces
         }
 
-        pub fn line(&self, image: &mut tga::TgaImage, x: usize, y: usize, w: usize, h: usize, color: &tga::TgaColor) {
+        pub fn line(&self, image: &mut tga::TgaImage, x: i32, y: i32, w: i32, h: i32, color: &tga::TgaColor) {
                 let width = w as f64;
                 let height = h as f64;
 
@@ -140,10 +140,10 @@ impl Model {
                                 let idx1 = face.get(i + 1).unwrap_or(face.first().unwrap());
                                 let v0 = &self.verts[*idx0];
                                 let v1 = &self.verts[*idx1];
-                                let x0 = x + ((v0.x + 1f64) * width / 2f64) as usize;
-                                let y0 = y + ((v0.y + 1f64) * width / 2f64) as usize;
-                                let x1 = x + ((v1.x + 1f64) * width / 2f64) as usize;
-                                let y1 = y + ((v1.y + 1f64) * width / 2f64) as usize;
+                                let x0 = x + ((v0.x + 1f64) * width / 2f64) as i32;
+                                let y0 = y + ((v0.y + 1f64) * width / 2f64) as i32;
+                                let x1 = x + ((v1.x + 1f64) * width / 2f64) as i32;
+                                let y1 = y + ((v1.y + 1f64) * width / 2f64) as i32;
                                 image.line(x0, y0, x1, y1, color);
                         }
                 }

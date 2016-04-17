@@ -1,3 +1,4 @@
+use std::cmp;
 use std::path::Path;
 use std::fs::File;
 use std::io;
@@ -518,46 +519,201 @@ const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 */
 
+#[derive(Clone, Copy, Debug)]
+enum LineStateRound {
+	Left,
+	Nearest,
+	Right,
+}
 
+struct LineState {
+	pub a: i32,
+	a_final: i32,
+	pub b: i32,
+	b_frac: i32, // fraction = b_frac/da
+	da: i32,
+	db: i32,
+	dir: i32,
+}
+
+impl LineState {
+	pub fn new(a0: i32, b0: i32, a1: i32, b1: i32, round: LineStateRound) -> Self {
+		// double these so that we can implement rounding with integers
+		let da = (a1 - a0).abs() * 2;
+		let db = (b1 - b0).abs() * 2;
+		let up = b1 > b0;
+		let b_frac = match round {
+			LineStateRound::Left => if up { da - 1 } else { 1 },
+			LineStateRound::Nearest => da / 2,
+			LineStateRound::Right => if up { 1 } else { da - 1 },
+		};
+		let dir = if up { 1 } else { -1 };
+		LineState {
+			a: a0,
+			a_final: a1,
+			b: b0,
+			b_frac: b_frac,
+			da: da,
+			db: db,
+			dir: dir,
+		}
+	}
+
+	// step a by '1'
+	// step b by 'db/da'
+	pub fn step(&mut self) -> bool {
+		if self.a == self.a_final {
+			return false;
+		}
+		self.a += 1;
+		self.b_frac += self.db;
+		while self.b_frac >= self.da {
+			self.b_frac -= self.da;
+			self.b += self.dir;
+		}
+		true
+	}
+}
 
 impl TgaImage {
 	pub fn line(&mut self,
-		    mut x0: usize, mut y0: usize,
-		    mut x1: usize, mut y1: usize,
+		    mut x0: i32, mut y0: i32,
+		    mut x1: i32, mut y1: i32,
 		    color: &TgaColor) {
-		let mut dx = if x0 > x1 { x0 - x1 } else { x1 - x0 };
-		let mut dy = if y0 > y1 { y0 - y1 } else { y1 - y0 };
+		let mut dx = (x1 - x0).abs();
+		let mut dy = (y1 - y0).abs();
 		let steep = dy > dx;
 		if steep {
 			std::mem::swap(&mut x0, &mut y0);
 			std::mem::swap(&mut x1, &mut y1);
-			std::mem::swap(&mut dx, &mut dy);
 		};
 		if x0 > x1 {
 			std::mem::swap(&mut x0, &mut x1);
 			std::mem::swap(&mut y0, &mut y1);
 		}
-		let mut x = x0;
-		let mut y = y0;
-		let mut d = dx;
+		let mut s = LineState::new(x0, y0, x1, y1, LineStateRound::Nearest);
 		loop {
 			if steep {
-				self.set(y, x, color);
+				self.set(s.b as usize, s.a as usize, color);
 			} else {
-				self.set(x, y, color);
+				self.set(s.a as usize, s.b as usize, color);
 			}
+			if !s.step() {
+				break;
+			}
+		}
+	}
+
+	pub fn horizontal_line(&mut self,
+		    mut x0: i32, mut x1: i32, mut y: i32,
+		    color: &TgaColor) {
+		if x0 > x1 {
+			std::mem::swap(&mut x0, &mut x1);
+		}
+		let mut x = x0;
+		loop {
+			self.set(x as usize, y as usize, color);
 			if x == x1 {
 				break;
 			}
 			x += 1;
-			d += 2 * dy;
-			if d > 2 * dx {
-				if y0 < y1 {
-					y += 1;
-				} else {
-					y -= 1;
+		}
+	}
+
+	pub fn fill(&mut self,
+		    mut x0: i32, mut y0: i32,
+		    mut x1: i32, mut y1: i32,
+		    mut x2: i32, mut y2: i32,
+		    color: &TgaColor) {
+		if y0 == y1 && y0 == y2 {
+			return;
+		}
+		if y0 > y1 {
+			std::mem::swap(&mut x0, &mut x1);
+			std::mem::swap(&mut y0, &mut y1);
+		}
+		if y0 > y2 {
+			std::mem::swap(&mut x0, &mut x2);
+			std::mem::swap(&mut y0, &mut y2);
+		}
+		if y1 > y2 {
+			std::mem::swap(&mut x1, &mut x2);
+			std::mem::swap(&mut y1, &mut y2);
+		}
+		let (mut roundl, mut roundr) = (LineStateRound::Left, LineStateRound::Right);
+		if (x1 - x0) * (y2 - y0) > (x2 - x0) * (y1 - y0) {
+			std::mem::swap(&mut roundl, &mut roundr);
+		}
+		let mut l = LineState::new(y0, x0, y1, x1, roundl);
+		let mut r = LineState::new(y0, x0, y2, x2, roundr);
+		loop {
+			if (r.b - l.b) * (x2 - x1) >= 0 {
+				self.horizontal_line(l.b, r.b, r.a, color);
+			}
+			if !l.step() {
+				break;
+			}
+			r.step();
+		}
+		l = LineState::new(y1, x1, y2, x2, roundl);
+		loop {
+			if !l.step() {
+				break;
+			}
+			r.step();
+			if (r.b - l.b) * (x2 - x1) >= 0 {
+				self.horizontal_line(l.b, r.b, r.a, color);
+			}
+		}
+	}
+
+	// i  j  k
+	// x0 y0 z0
+	// x1 y1 z1
+	fn cross(&self, x0: i32, y0: i32, z0: i32, x1: i32, y1: i32, z1: i32) -> (i32, i32, i32) {
+		return (y0 * z1 - z0 * y1, z0 * x1 - x0 * z1, x0 * y1 - y0 * x1)
+	}
+
+	// Return true if barycentric coordinates are >= 0
+	// Define l0, l1, l2:
+	// x = l0 x0 + l1 x1 + l2 x2
+	// y = l0 y0 + l1 y1 + l2 y2
+	// l0 + l1 + l2 = 1
+	// Therefore:
+	// 0 = l1 (x1 - x0) + l2 (x2 - x0) + (x0 - x)
+	// 0 = l1 (y1 - y0) + l2 (y2 - y0) + (y0 - y)
+	// Solve using cross product.
+	fn inside(&self, x: i32, y: i32,
+		  x0: i32, y0: i32,
+		  x1: i32, y1: i32,
+		  x2: i32, y2: i32)
+		  -> bool {
+		let (l1, l2, scale) = self.cross(x1 - x0, x2 - x0, x0 - x, y1 - y0, y2 - y0, y0 - y);
+		if scale == 0 {
+			return false;
+		}
+		let l0 = scale - l1 - l2;
+		if scale > 0 {
+			l0 >= 0 && l1 >= 0 && l2 >= 0
+		} else {
+			l0 <= 0 && l1 <= 0 && l2 <= 0
+		}
+	}
+
+	pub fn fill2(&mut self,
+		     x0: i32, y0: i32,
+		     x1: i32, y1: i32,
+		     x2: i32, y2: i32,
+		     color: &TgaColor) {
+		let minx = cmp::max(0, cmp::min(x0, cmp::min(x1, x2)));
+		let miny = cmp::max(0, cmp::min(y0, cmp::min(y1, y2)));
+		let maxx = cmp::max(self.width as i32 - 1, cmp::max(x0, cmp::max(x1, x2)));
+		let maxy = cmp::max(self.height as i32 - 1, cmp::max(y0, cmp::max(y1, y2)));
+		for y in miny .. maxy + 1 {
+			for x in minx .. maxx + 1 {
+				if self.inside(x, y, x0, y0, x1, y1, x2, y2) {
+					self.set(x as usize, y as usize, color);
 				}
-				d -= 2 * dx;
 			}
 		}
 	}
