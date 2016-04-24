@@ -1,3 +1,5 @@
+use vec;
+
 use std::cmp;
 use std::path::Path;
 use std::fs::File;
@@ -621,32 +623,29 @@ impl TgaImage {
 	}
 
 	pub fn fill(&mut self,
-		    mut x0: i32, mut y0: i32,
-		    mut x1: i32, mut y1: i32,
-		    mut x2: i32, mut y2: i32,
+		    mut p0: vec::Vec2<i32>,
+		    mut p1: vec::Vec2<i32>,
+		    mut p2: vec::Vec2<i32>,
 		    color: &TgaColor) {
-		if y0 == y1 && y0 == y2 {
+		if p0.y == p1.y && p0.y == p2.y {
 			return;
 		}
-		if y0 > y1 {
-			std::mem::swap(&mut x0, &mut x1);
-			std::mem::swap(&mut y0, &mut y1);
+		if p0.y > p1.y {
+			std::mem::swap(&mut p0, &mut p1);
 		}
-		if y0 > y2 {
-			std::mem::swap(&mut x0, &mut x2);
-			std::mem::swap(&mut y0, &mut y2);
+		if p0.y > p2.y {
+			std::mem::swap(&mut p0, &mut p2);
 		}
-		if y1 > y2 {
-			std::mem::swap(&mut x1, &mut x2);
-			std::mem::swap(&mut y1, &mut y2);
+		if p1.y > p2.y {
+			std::mem::swap(&mut p1, &mut p2);
 		}
 		let (mut roundl, mut roundr) = (LineStateRound::Left, LineStateRound::Right);
-		let order = (x2 - x0) * (y1 - y0) - (x1 - x0) * (y2 - y0);
+		let order = (p2.x - p0.x) * (p1.y - p0.y) - (p1.x - p0.x) * (p2.y - p0.y);
 		if order < 0 {
 			std::mem::swap(&mut roundl, &mut roundr);
 		}
-		let mut l = LineState::new(y0, x0, y1, x1, roundl);
-		let mut r = LineState::new(y0, x0, y2, x2, roundr);
+		let mut l = LineState::new(p0.y, p0.x, p1.y, p1.x, roundl);
+		let mut r = LineState::new(p0.y, p0.x, p2.y, p2.x, roundr);
 		loop {
 			if (r.b - l.b) * order >= 0 {
 				self.horizontal_line(l.b, r.b, r.a, color);
@@ -656,7 +655,7 @@ impl TgaImage {
 			}
 			r.step();
 		}
-		l = LineState::new(y1, x1, y2, x2, roundl);
+		l = LineState::new(p1.y, p1.x, p2.y, p2.x, roundl);
 		loop {
 			if !l.step() {
 				break;
@@ -666,13 +665,6 @@ impl TgaImage {
 				self.horizontal_line(l.b, r.b, r.a, color);
 			}
 		}
-	}
-
-	// i  j  k
-	// x0 y0 z0
-	// x1 y1 z1
-	fn cross(&self, x0: i32, y0: i32, z0: i32, x1: i32, y1: i32, z1: i32) -> (i32, i32, i32) {
-		return (y0 * z1 - z0 * y1, z0 * x1 - x0 * z1, x0 * y1 - y0 * x1)
 	}
 
 	// Return true if barycentric coordinates are >= 0
@@ -684,12 +676,14 @@ impl TgaImage {
 	// 0 = l1 (x1 - x0) + l2 (x2 - x0) + (x0 - x)
 	// 0 = l1 (y1 - y0) + l2 (y2 - y0) + (y0 - y)
 	// Solve using cross product.
-	fn inside(&self, x: i32, y: i32,
-		  x0: i32, y0: i32,
-		  x1: i32, y1: i32,
-		  x2: i32, y2: i32)
+	fn inside(&self, p: vec::Vec2<i32>,
+		  p0: vec::Vec2<i32>,
+		  p1: vec::Vec2<i32>,
+		  p2: vec::Vec2<i32>)
 		  -> bool {
-		let (l1, l2, scale) = self.cross(x1 - x0, x2 - x0, x0 - x, y1 - y0, y2 - y0, y0 - y);
+		let v1 = vec::Vec3::new(p1.x - p0.x, p2.x - p0.x, p0.x - p.x);
+		let v2 = vec::Vec3::new(p1.y - p0.y, p2.y - p0.y, p0.y - p.y);
+		let (l1, l2, scale) = v1.cross(&v2).as_tuple();
 		if scale == 0 {
 			return false;
 		}
@@ -702,17 +696,17 @@ impl TgaImage {
 	}
 
 	pub fn fill2(&mut self,
-		     x0: i32, y0: i32,
-		     x1: i32, y1: i32,
-		     x2: i32, y2: i32,
+		     p0: vec::Vec2<i32>,
+		     p1: vec::Vec2<i32>,
+		     p2: vec::Vec2<i32>,
 		     color: &TgaColor) {
-		let minx = cmp::max(0, cmp::min(x0, cmp::min(x1, x2)));
-		let miny = cmp::max(0, cmp::min(y0, cmp::min(y1, y2)));
-		let maxx = cmp::max(self.width as i32 - 1, cmp::max(x0, cmp::max(x1, x2)));
-		let maxy = cmp::max(self.height as i32 - 1, cmp::max(y0, cmp::max(y1, y2)));
+		let minx = cmp::max(0, cmp::min(p0.x, cmp::min(p1.x, p2.x)));
+		let miny = cmp::max(0, cmp::min(p0.y, cmp::min(p1.y, p2.y)));
+		let maxx = cmp::max(self.width as i32 - 1, cmp::max(p0.x, cmp::max(p1.x, p2.x)));
+		let maxy = cmp::max(self.height as i32 - 1, cmp::max(p0.y, cmp::max(p1.y, p2.y)));
 		for y in miny .. maxy + 1 {
 			for x in minx .. maxx + 1 {
-				if self.inside(x, y, x0, y0, x1, y1, x2, y2) {
+				if self.inside(vec::Vec2::new(x, y), p0, p1, p2) {
 					self.set(x as usize, y as usize, color);
 				}
 			}

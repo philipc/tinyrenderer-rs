@@ -151,15 +151,17 @@ impl Model {
 			let intensity = (intensity * 255f64) as u8;
 			let color = tga::TgaColor::new(intensity, intensity, intensity, 255);
 
-			// FIXME: convert to i32 after interpolating line
-			let x0 = x + ((v0.x + 1f64) * width / 2f64) as i32;
-			let y0 = y + ((v0.y + 1f64) * height / 2f64) as i32;
-			let x1 = x + ((v1.x + 1f64) * width / 2f64) as i32;
-			let y1 = y + ((v1.y + 1f64) * height / 2f64) as i32;
-			let x2 = x + ((v2.x + 1f64) * width / 2f64) as i32;
-			let y2 = y + ((v2.y + 1f64) * height / 2f64) as i32;
+			let p0 = vec::Vec2::new(
+				x + ((v0.x + 1f64) * width / 2f64) as i32,
+				y + ((v0.y + 1f64) * height / 2f64) as i32);
+			let p1 = vec::Vec2::new(
+				((v1.x + 1f64) * width / 2f64) as i32,
+				((v1.y + 1f64) * height / 2f64) as i32);
+			let p2 = vec::Vec2::new(
+				((v2.x + 1f64) * width / 2f64) as i32,
+				((v2.y + 1f64) * height / 2f64) as i32);
 
-			image.fill(x0, y0, x1, y1, x2, y2, &color);
+			image.fill(p0, p1, p2, &color);
 		}
 	}
 }

@@ -42,9 +42,9 @@ fn main() {
 			model.line(&mut image, 0, 0, width, height, white);
 		},
 		Lesson::L2Triangle => {
-			image.fill(10, 70, 50, 160, 70, 80, red);
-			image.fill(180, 50, 150, 1, 70, 180, white);
-			image.fill(180, 150, 120, 160, 130, 180, green);
+			image.fill(vec::Vec2::new(10, 70), vec::Vec2::new(50, 160), vec::Vec2::new(70, 80), red);
+			image.fill(vec::Vec2::new(180, 50), vec::Vec2::new(150, 1), vec::Vec2::new(70, 180), white);
+			image.fill(vec::Vec2::new(180, 150), vec::Vec2::new(120, 160), vec::Vec2::new(130, 180), green);
 		},
 		Lesson::L2Model => {
 			model.fill(&mut image, 0, 0, width, height);
