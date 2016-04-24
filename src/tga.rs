@@ -620,7 +620,6 @@ impl TgaImage {
 		}
 	}
 
-	// FIXME: still buggy
 	pub fn fill(&mut self,
 		    mut x0: i32, mut y0: i32,
 		    mut x1: i32, mut y1: i32,
@@ -642,13 +641,14 @@ impl TgaImage {
 			std::mem::swap(&mut y1, &mut y2);
 		}
 		let (mut roundl, mut roundr) = (LineStateRound::Left, LineStateRound::Right);
-		if (x1 - x0) * (y2 - y0) > (x2 - x0) * (y1 - y0) {
+		let order = (x2 - x0) * (y1 - y0) - (x1 - x0) * (y2 - y0);
+		if order < 0 {
 			std::mem::swap(&mut roundl, &mut roundr);
 		}
 		let mut l = LineState::new(y0, x0, y1, x1, roundl);
 		let mut r = LineState::new(y0, x0, y2, x2, roundr);
 		loop {
-			if (r.b - l.b) * (x2 - x1) >= 0 {
+			if (r.b - l.b) * order >= 0 {
 				self.horizontal_line(l.b, r.b, r.a, color);
 			}
 			if !l.step() {
@@ -662,7 +662,7 @@ impl TgaImage {
 				break;
 			}
 			r.step();
-			if (r.b - l.b) * (x2 - x1) >= 0 {
+			if (r.b - l.b) * order >= 0 {
 				self.horizontal_line(l.b, r.b, r.a, color);
 			}
 		}
