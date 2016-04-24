@@ -2,6 +2,7 @@ extern crate image;
 
 mod model;
 mod tga;
+mod vec;
 
 use std::fs::File;
 use std::io::BufReader;

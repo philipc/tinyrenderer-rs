@@ -1,4 +1,5 @@
 use tga;
+use vec;
 
 use std::fs::File;
 use std::io;
@@ -7,7 +8,6 @@ use std::io::BufRead;
 use std::num;
 use std::path::Path;
 use std::str;
-use std::ops;
 
 #[derive(Debug)]
 pub enum ModelError {
@@ -33,59 +33,8 @@ impl From<num::ParseIntError> for ModelError {
 	}
 }
 
-pub struct Vec3<T> {
-	pub x: T,
-	pub y: T,
-	pub z: T,
-}
-
-impl<T> Vec3<T> where T: Copy + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<T, Output = T> + ops::Div<T, Output = T> {
-	pub fn new(x: T, y: T, z: T) -> Self {
-		Vec3 {
-			x: x,
-			y: y,
-			z: z,
-		}
-	}
-
-	pub fn sub(&self, v: &Vec3<T>) -> Self {
-		Vec3 {
-			x: self.x - v.x,
-			y: self.y - v.y,
-			z: self.z - v.z,
-		}
-	}
-
-	pub fn dot(&self, v: &Vec3<T>) -> T {
-		self.x * v.x + self.y * v.y + self.z * v.z
-	}
-
-	pub fn cross(&self, v: &Vec3<T>) -> Self {
-		Vec3 {
-			x: self.y * v.z - self.z * v.y,
-			y: self.z * v.x - self.x * v.z,
-			z: self.x * v.y - self.y * v.x,
-		}
-	}
-}
-
-impl Vec3<f64> {
-	pub fn norm(&self) -> f64 {
-		(self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
-	}
-
-	pub fn normalize(&mut self) -> Self {
-		let n = self.norm();
-		Vec3 {
-			x: self.x / n,
-			y: self.y / n,
-			z: self.z / n,
-		}
-	}
-}
-
 pub struct Model {
-	verts: Vec<Vec3<f64>>,
+	verts: Vec<vec::Vec3<f64>>,
 	faces: Vec<Vec<usize>>,
 }
 
@@ -116,7 +65,7 @@ impl Model {
 		let x = try!(self.read_f64(words));
 		let y = try!(self.read_f64(words));
 		let z = try!(self.read_f64(words));
-		let vert = Vec3::new(x, y, z);
+		let vert = vec::Vec3::new(x, y, z);
 		self.verts.push(vert);
 		Ok(())
 	}
@@ -155,7 +104,7 @@ impl Model {
 		self.verts.len()
 	}
 
-	pub fn vert(&self, idx: usize) -> &Vec3<f64> {
+	pub fn vert(&self, idx: usize) -> &vec::Vec3<f64> {
 		&self.verts[idx]
 	}
 
@@ -186,7 +135,7 @@ impl Model {
 	}
 
 	pub fn fill(&self, image: &mut tga::TgaImage, x: i32, y: i32, w: i32, h: i32) {
-		let light_dir = Vec3::new(0f64, 0f64, -1f64);
+		let light_dir = vec::Vec3::new(0f64, 0f64, -1f64);
 		let width = w as f64;
 		let height = h as f64;
 
@@ -202,6 +151,7 @@ impl Model {
 			let intensity = (intensity * 255f64) as u8;
 			let color = tga::TgaColor::new(intensity, intensity, intensity, 255);
 
+			// FIXME: convert to i32 after interpolating line
 			let x0 = x + ((v0.x + 1f64) * width / 2f64) as i32;
 			let y0 = y + ((v0.y + 1f64) * height / 2f64) as i32;
 			let x1 = x + ((v1.x + 1f64) * width / 2f64) as i32;
