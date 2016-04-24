@@ -185,7 +185,7 @@ impl Model {
 		}
 	}
 
-	pub fn fill(&self, image: &mut tga::TgaImage, x: i32, y: i32, w: usize, h: usize) {
+	pub fn fill(&self, image: &mut tga::TgaImage, x: i32, y: i32, w: i32, h: i32) {
 		let light_dir = Vec3::new(0f64, 0f64, -1f64);
 		let width = w as f64;
 		let height = h as f64;
@@ -209,7 +209,7 @@ impl Model {
 			let x2 = x + ((v2.x + 1f64) * width / 2f64) as i32;
 			let y2 = y + ((v2.y + 1f64) * height / 2f64) as i32;
 
-			image.fill2(x0, y0, x1, y1, x2, y2, &color);
+			image.fill(x0, y0, x1, y1, x2, y2, &color);
 		}
 	}
 }
