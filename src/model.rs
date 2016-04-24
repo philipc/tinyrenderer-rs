@@ -157,11 +157,11 @@ impl Model {
 				x + ((v0.x + 1f64) * width / 2f64) as i32,
 				y + ((v0.y + 1f64) * height / 2f64) as i32);
 			let p1 = vec::Vec2::new(
-				((v1.x + 1f64) * width / 2f64) as i32,
-				((v1.y + 1f64) * height / 2f64) as i32);
+				x + ((v1.x + 1f64) * width / 2f64) as i32,
+				y + ((v1.y + 1f64) * height / 2f64) as i32);
 			let p2 = vec::Vec2::new(
-				((v2.x + 1f64) * width / 2f64) as i32,
-				((v2.y + 1f64) * height / 2f64) as i32);
+				x + ((v2.x + 1f64) * width / 2f64) as i32,
+				y + ((v2.y + 1f64) * height / 2f64) as i32);
 
 			image.fill(p0, p1, p2, &color);
 		}
