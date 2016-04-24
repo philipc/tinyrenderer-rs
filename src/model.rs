@@ -125,11 +125,13 @@ impl Model {
 				let idx1 = face.get(i + 1).unwrap_or(face.first().unwrap());
 				let v0 = &self.verts[*idx0];
 				let v1 = &self.verts[*idx1];
-				let x0 = x + ((v0.x + 1f64) * width / 2f64) as i32;
-				let y0 = y + ((v0.y + 1f64) * height / 2f64) as i32;
-				let x1 = x + ((v1.x + 1f64) * width / 2f64) as i32;
-				let y1 = y + ((v1.y + 1f64) * height / 2f64) as i32;
-				image.line(x0, y0, x1, y1, color);
+				let p0 = vec::Vec2::new(
+					x + ((v0.x + 1f64) * width / 2f64) as i32,
+					y + ((v0.y + 1f64) * height / 2f64) as i32);
+				let p1 = vec::Vec2::new(
+					x + ((v1.x + 1f64) * width / 2f64) as i32,
+					y + ((v1.y + 1f64) * height / 2f64) as i32);
+				image.line(p0, p1, color);
 			}
 		}
 	}

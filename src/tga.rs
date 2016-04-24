@@ -579,21 +579,21 @@ impl LineState {
 
 impl TgaImage {
 	pub fn line(&mut self,
-		    mut x0: i32, mut y0: i32,
-		    mut x1: i32, mut y1: i32,
+		    mut p0: vec::Vec2<i32>,
+		    mut p1: vec::Vec2<i32>,
 		    color: &TgaColor) {
-		let mut dx = (x1 - x0).abs();
-		let mut dy = (y1 - y0).abs();
+		let mut dx = (p1.x - p0.x).abs();
+		let mut dy = (p1.y - p0.y).abs();
 		let steep = dy > dx;
 		if steep {
-			std::mem::swap(&mut x0, &mut y0);
-			std::mem::swap(&mut x1, &mut y1);
+			std::mem::swap(&mut p0.x, &mut p0.y);
+			std::mem::swap(&mut p1.x, &mut p1.y);
 		};
-		if x0 > x1 {
-			std::mem::swap(&mut x0, &mut x1);
-			std::mem::swap(&mut y0, &mut y1);
+		if p0.x > p1.x {
+			std::mem::swap(&mut p0.x, &mut p1.x);
+			std::mem::swap(&mut p0.y, &mut p1.y);
 		}
-		let mut s = LineState::new(x0, y0, x1, y1, LineStateRound::Nearest);
+		let mut s = LineState::new(p0.x, p0.y, p1.x, p1.y, LineStateRound::Nearest);
 		loop {
 			if steep {
 				self.set(s.b as usize, s.a as usize, color);
