@@ -7,7 +7,6 @@ use std::io::BufReader;
 use std::io::BufRead;
 use std::num;
 use std::path::Path;
-use std::str;
 
 #[derive(Debug)]
 pub enum ModelError {
@@ -47,7 +46,7 @@ impl Model {
 	}
 
 	pub fn read(&mut self, path: &Path) -> Result<(), ModelError> {
-		let mut file = BufReader::new(try!(File::open(path)));
+		let file = BufReader::new(try!(File::open(path)));
 		for line in file.lines() {
 			let line = try!(line);
 			let mut words = line.split_whitespace();
@@ -98,22 +97,6 @@ impl Model {
 			return Err(ModelError::Parse("face idx is too large".into()));
 		};
 		Ok(idx)
-	}
-
-	pub fn nverts(&self) -> usize {
-		self.verts.len()
-	}
-
-	pub fn vert(&self, idx: usize) -> &vec::Vec3<f64> {
-		&self.verts[idx]
-	}
-
-	pub fn nfaces(&self) -> usize {
-		self.faces.len()
-	}
-
-	pub fn faces(&self) -> &Vec<Vec<usize>> {
-		&self.faces
 	}
 
 	pub fn line(&self, image: &mut tga::TgaImage, x: i32, y: i32, w: i32, h: i32, color: &tga::TgaColor) {

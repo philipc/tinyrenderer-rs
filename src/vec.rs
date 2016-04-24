@@ -16,6 +16,7 @@ impl<T> Vec2<T> {
 }
 
 impl<T> Vec2<T> where T: Copy {
+	#[allow(dead_code)]
         pub fn as_tuple(&self) -> (T, T) {
                 (self.x, self.y)
         }

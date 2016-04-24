@@ -4,10 +4,9 @@ mod model;
 mod tga;
 mod vec;
 
-use std::fs::File;
-use std::io::BufReader;
 use std::path::Path;
 
+#[allow(dead_code)]
 enum Lesson {
 	L1Model,
 	L2Triangle,

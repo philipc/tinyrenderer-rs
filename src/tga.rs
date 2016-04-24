@@ -4,7 +4,6 @@ use std::cmp;
 use std::path::Path;
 use std::fs::File;
 use std::io;
-use std::io::BufReader;
 use std::io::BufWriter;
 use std::io::Write;
 use std;
@@ -204,10 +203,12 @@ impl TgaImage {
 		}
 	}
 
+	#[allow(dead_code)]
 	pub fn get_width(&self) -> usize {
 		self.width
 	}
 
+	#[allow(dead_code)]
 	pub fn get_height(&self) -> usize {
 		self.height
 	}
@@ -443,6 +444,7 @@ impl TgaImage {
 		}
 	}
 
+	#[allow(dead_code)]
 	pub fn flip_horizontally(&mut self) {
 		let width = self.width;
 		for i in 0 .. width/2 {
@@ -455,6 +457,7 @@ impl TgaImage {
 		}
 	}
 
+	#[allow(dead_code)]
 	pub fn flip_vertically(&mut self) {
 		let bytes_per_line = self.width * self.bytes_per_pixel();
 		let half = self.height / 2;
@@ -582,8 +585,8 @@ impl TgaImage {
 		    mut p0: vec::Vec2<i32>,
 		    mut p1: vec::Vec2<i32>,
 		    color: &TgaColor) {
-		let mut dx = (p1.x - p0.x).abs();
-		let mut dy = (p1.y - p0.y).abs();
+		let dx = (p1.x - p0.x).abs();
+		let dy = (p1.y - p0.y).abs();
 		let steep = dy > dx;
 		if steep {
 			std::mem::swap(&mut p0.x, &mut p0.y);
@@ -607,7 +610,7 @@ impl TgaImage {
 	}
 
 	pub fn horizontal_line(&mut self,
-		    mut x0: i32, mut x1: i32, mut y: i32,
+		    mut x0: i32, mut x1: i32, y: i32,
 		    color: &TgaColor) {
 		if x0 > x1 {
 			std::mem::swap(&mut x0, &mut x1);
@@ -622,6 +625,7 @@ impl TgaImage {
 		}
 	}
 
+	#[allow(dead_code)]
 	pub fn fill(&mut self,
 		    mut p0: vec::Vec2<i32>,
 		    mut p1: vec::Vec2<i32>,
@@ -695,6 +699,7 @@ impl TgaImage {
 		}
 	}
 
+	#[allow(dead_code)]
 	pub fn fill2(&mut self,
 		     p0: vec::Vec2<i32>,
 		     p1: vec::Vec2<i32>,
