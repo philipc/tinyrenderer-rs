@@ -119,6 +119,7 @@ impl Model {
 		}
 	}
 
+	#[allow(dead_code)]
 	pub fn fill(&self, image: &mut tga::TgaImage, x: i32, y: i32, w: i32, h: i32) {
 		let light_dir = vec::Vec3::new(0f64, 0f64, -1f64);
 		let width = w as f64;
@@ -137,16 +138,48 @@ impl Model {
 			let color = tga::TgaColor::new(intensity, intensity, intensity, 255);
 
 			let p0 = vec::Vec2::new(
-				x + ((v0.x + 1f64) * width / 2f64) as i32,
-				y + ((v0.y + 1f64) * height / 2f64) as i32);
+				x + ((v0.x + 1f64) * width / 2f64 + 0.5f64) as i32,
+				y + ((v0.y + 1f64) * height / 2f64 + 0.5f64) as i32);
 			let p1 = vec::Vec2::new(
-				x + ((v1.x + 1f64) * width / 2f64) as i32,
-				y + ((v1.y + 1f64) * height / 2f64) as i32);
+				x + ((v1.x + 1f64) * width / 2f64 + 0.5f64) as i32,
+				y + ((v1.y + 1f64) * height / 2f64 + 0.5f64) as i32);
 			let p2 = vec::Vec2::new(
-				x + ((v2.x + 1f64) * width / 2f64) as i32,
-				y + ((v2.y + 1f64) * height / 2f64) as i32);
+				x + ((v2.x + 1f64) * width / 2f64 + 0.5f64) as i32,
+				y + ((v2.y + 1f64) * height / 2f64 + 0.5f64) as i32);
 
 			image.fill(p0, p1, p2, &color);
+		}
+	}
+
+	#[allow(dead_code)]
+	pub fn fill_float(&self, image: &mut tga::TgaImage, x: i32, y: i32, w: i32, h: i32) {
+		let light_dir = vec::Vec3::new(0f64, 0f64, -1f64);
+		let width = w as f64;
+		let height = h as f64;
+
+		for face in &self.faces {
+			let v0 = &self.verts[face[0]];
+			let v1 = &self.verts[face[1]];
+			let v2 = &self.verts[face[2]];
+
+			let intensity = (&v2.sub(v0)).cross(&v1.sub(v0)).normalize().dot(&light_dir);
+			if intensity <= 0f64 {
+				continue;
+			}
+			let intensity = (intensity * 255f64) as u8;
+			let color = tga::TgaColor::new(intensity, intensity, intensity, 255);
+
+			let p0 = vec::Vec2::new(
+				x as f64 + (v0.x + 1f64) * width / 2f64,
+				y as f64 + (v0.y + 1f64) * height / 2f64);
+			let p1 = vec::Vec2::new(
+				x as f64 + (v1.x + 1f64) * width / 2f64,
+				y as f64 + (v1.y + 1f64) * height / 2f64);
+			let p2 = vec::Vec2::new(
+				x as f64 + (v2.x + 1f64) * width / 2f64,
+				y as f64 + (v2.y + 1f64) * height / 2f64);
+
+			image.fill_float(p0, p1, p2, &color);
 		}
 	}
 }
