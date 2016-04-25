@@ -7,6 +7,7 @@ use std::io::BufReader;
 use std::io::BufRead;
 use std::num;
 use std::path::Path;
+use std::f64;
 
 #[derive(Debug)]
 pub enum ModelError {
@@ -156,6 +157,7 @@ impl Model {
 		let light_dir = vec::Vec3::new(0f64, 0f64, -1f64);
 		let width = w as f64;
 		let height = h as f64;
+		let mut zbuffer = vec![f64::MIN; image.get_width() * image.get_height()];
 
 		for face in &self.faces {
 			let v0 = &self.verts[face[0]];
@@ -169,17 +171,20 @@ impl Model {
 			let intensity = (intensity * 255f64) as u8;
 			let color = tga::TgaColor::new(intensity, intensity, intensity, 255);
 
-			let p0 = vec::Vec2::new(
+			let p0 = vec::Vec3::new(
 				x as f64 + (v0.x + 1f64) * width / 2f64,
-				y as f64 + (v0.y + 1f64) * height / 2f64);
-			let p1 = vec::Vec2::new(
+				y as f64 + (v0.y + 1f64) * height / 2f64,
+				v0.z);
+			let p1 = vec::Vec3::new(
 				x as f64 + (v1.x + 1f64) * width / 2f64,
-				y as f64 + (v1.y + 1f64) * height / 2f64);
-			let p2 = vec::Vec2::new(
+				y as f64 + (v1.y + 1f64) * height / 2f64,
+				v1.z);
+			let p2 = vec::Vec3::new(
 				x as f64 + (v2.x + 1f64) * width / 2f64,
-				y as f64 + (v2.y + 1f64) * height / 2f64);
+				y as f64 + (v2.y + 1f64) * height / 2f64,
+				v2.z);
 
-			image.fill_float(p0, p1, p2, &color);
+			image.fill_float(p0, p1, p2, &color, &mut zbuffer[..]);
 		}
 	}
 }

@@ -11,6 +11,7 @@ enum Lesson {
 	L1Model,
 	L2Triangle,
 	L2Model,
+	L3Model,
 }
 
 fn main() {
@@ -20,13 +21,14 @@ fn main() {
 
 	//let lesson = Lesson::L1Model;
 	//let lesson = Lesson::L2Triangle;
-	let lesson = Lesson::L2Model;
+	//let lesson = Lesson::L2Model;
+	let lesson = Lesson::L3Model;
 
 	let (width, height) = match lesson {
 		Lesson::L2Triangle => {
 			(200, 200)
 		},
-		Lesson::L1Model | Lesson::L2Model => {
+		Lesson::L1Model | Lesson::L2Model | Lesson::L3Model => {
 			(800, 800)
 		},
 	};
@@ -47,6 +49,9 @@ fn main() {
 		},
 		Lesson::L2Model => {
 			model.fill(&mut image, 0, 0, width, height);
+		},
+		Lesson::L3Model => {
+			model.fill_float(&mut image, 0, 0, width, height);
 		},
 	}
 	image.flip_vertically();

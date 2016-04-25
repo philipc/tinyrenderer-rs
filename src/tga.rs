@@ -699,23 +699,24 @@ impl TgaImage {
 		}
 	}
 
-	fn inside_float(&self, p: vec::Vec2<f64>,
-		  p0: vec::Vec2<f64>,
-		  p1: vec::Vec2<f64>,
-		  p2: vec::Vec2<f64>)
-		  -> bool {
+	fn barycentric(&self, p: vec::Vec2<f64>,
+		  p0: vec::Vec3<f64>,
+		  p1: vec::Vec3<f64>,
+		  p2: vec::Vec3<f64>)
+		  -> Option<vec::Vec3<f64>> {
 		let v1 = vec::Vec3::new(p1.x - p0.x, p2.x - p0.x, p0.x - p.x);
 		let v2 = vec::Vec3::new(p1.y - p0.y, p2.y - p0.y, p0.y - p.y);
 		let (l1, l2, scale) = v1.cross(&v2).as_tuple();
 		if scale == 0f64 {
-			return false;
+			return None;
 		}
-		let l0 = scale - l1 - l2;
-		if scale > 0f64 {
-			l0 >= 0f64 && l1 >= 0f64 && l2 >= 0f64
-		} else {
-			l0 <= 0f64 && l1 <= 0f64 && l2 <= 0f64
+		let l1 = l1 / scale;
+		let l2 = l2 / scale;
+		let l0 = 1f64 - l1 - l2;
+		if l0 < 0f64 || l1 < 0f64 || l2 < 0f64 {
+			return None;
 		}
+		Some(vec::Vec3::new(l0, l1, l2))
 	}
 
 	#[allow(dead_code)]
@@ -738,18 +739,26 @@ impl TgaImage {
 	}
 
 	pub fn fill_float(&mut self,
-		     p0: vec::Vec2<f64>,
-		     p1: vec::Vec2<f64>,
-		     p2: vec::Vec2<f64>,
-		     color: &TgaColor) {
+		     p0: vec::Vec3<f64>,
+		     p1: vec::Vec3<f64>,
+		     p2: vec::Vec3<f64>,
+		     color: &TgaColor,
+		     zbuffer: &mut [f64]) {
 		let minx = cmp::max(0, p0.x.min(p1.x.min(p2.x)).ceil() as i32);
 		let miny = cmp::max(0, p0.y.min(p1.y.min(p2.y)).ceil() as i32);
 		let maxx = cmp::min(self.width as i32 - 1, p0.x.max(p1.x.max(p2.x)).floor() as i32);
 		let maxy = cmp::min(self.height as i32 - 1, p0.y.max(p1.y.max(p2.y)).floor() as i32);
 		for y in miny .. maxy + 1 {
 			for x in minx .. maxx + 1 {
-				if self.inside_float(vec::Vec2::new(x as f64, y as f64), p0, p1, p2) {
-					self.set(x as usize, y as usize, color);
+				match self.barycentric(vec::Vec2::new(x as f64, y as f64), p0, p1, p2) {
+					None => (),
+					Some(bc) => {
+						let z = p0.z * bc.x + p1.z * bc.y + p2.z * bc.z;
+						if zbuffer[x as usize + y as usize * self.width] < z {
+							zbuffer[x as usize + y as usize * self.width] = z;
+							self.set(x as usize, y as usize, color);
+						}
+					}
 				}
 			}
 		}
