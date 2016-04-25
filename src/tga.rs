@@ -726,8 +726,8 @@ impl TgaImage {
 		     color: &TgaColor) {
 		let minx = cmp::max(0, cmp::min(p0.x, cmp::min(p1.x, p2.x)));
 		let miny = cmp::max(0, cmp::min(p0.y, cmp::min(p1.y, p2.y)));
-		let maxx = cmp::max(self.width as i32 - 1, cmp::max(p0.x, cmp::max(p1.x, p2.x)));
-		let maxy = cmp::max(self.height as i32 - 1, cmp::max(p0.y, cmp::max(p1.y, p2.y)));
+		let maxx = cmp::min(self.width as i32 - 1, cmp::max(p0.x, cmp::max(p1.x, p2.x)));
+		let maxy = cmp::min(self.height as i32 - 1, cmp::max(p0.y, cmp::max(p1.y, p2.y)));
 		for y in miny .. maxy + 1 {
 			for x in minx .. maxx + 1 {
 				if self.inside(vec::Vec2::new(x, y), p0, p1, p2) {
