@@ -4,7 +4,9 @@ use std::cmp;
 use std::path::Path;
 use std::fs::File;
 use std::io;
+use std::io::BufReader;
 use std::io::BufWriter;
+use std::io::Read;
 use std::io::Write;
 use std;
 
@@ -53,6 +55,13 @@ impl TgaHeader {
 		unsafe {
 			std::slice::from_raw_parts(self as *const Self as *const u8, 
 						   std::mem::size_of::<Self>())
+		}
+	}
+
+	fn as_u8_slice_mut(&mut self) -> &mut [u8] {
+		unsafe {
+			std::slice::from_raw_parts_mut(self as *mut Self as *mut u8, 
+						       std::mem::size_of::<Self>())
 		}
 	}
 }
@@ -240,7 +249,42 @@ TGAImage & TGAImage::operator =(const TGAImage &img) {
 	}
 	return *this;
 }
+*/
 
+impl TgaImage {
+	pub fn read(path: &Path) -> io::Result<Self> {
+		let mut file = BufReader::new(try!(File::open(path)));
+		let mut header = TgaHeader::default();
+		try!(file.read_exact(header.as_u8_slice_mut()));
+		let width: u16 = header.width.into();
+		let height: u16 = header.height.into();
+		let (format, rle) = match (header.image_type, header.bits_per_pixel) {
+			(2, 24) => (TgaFormat::RGB, false),
+			(2, 32) => (TgaFormat::RGBA, false),
+			(3, 8) => (TgaFormat::GRAYSCALE, false),
+			(10, 24) => (TgaFormat::RGB, true),
+			(10, 32) => (TgaFormat::RGBA, true),
+			(11, 8) => (TgaFormat::GRAYSCALE, true),
+			_ => return Err(io::Error::new(io::ErrorKind::Other, "invalid image_type")),
+		};
+		// FIXME: avoid zero init of data
+		let mut image = TgaImage::new(width as usize, height as usize, format);
+		if rle {
+			try!(image.read_rle(&mut file));
+		} else {
+			try!(file.read_exact(&mut image.data));
+		}
+		if header.image_descriptor & 0x10 != 0 {
+			image.flip_horizontally();
+		}
+		if header.image_descriptor & 0x20 != 0{
+			image.flip_vertically();
+		}
+		Ok(image)
+	}
+}
+
+/*
 bool TGAImage::read_tga_file(const char *filename) {
 	if (data) delete [] data;
 	data = NULL;
@@ -296,7 +340,39 @@ bool TGAImage::read_tga_file(const char *filename) {
 	in.close();
 	return true;
 }
+*/
 
+impl TgaImage {
+	fn read_rle(&mut self, file: &mut Read) -> io::Result<()> {
+		let bytes_per_pixel = self.bytes_per_pixel();
+		let num_pixels = self.width * self.height;
+		let mut start_pixel = 0;
+		while start_pixel < num_pixels {
+			let mut code = [0; 1];
+			try!(file.read_exact(&mut code));
+			let run_length = (code[0] & !0x80) as usize + 1;
+			let next_pixel = start_pixel + run_length;
+			if next_pixel > num_pixels {
+				return Err(io::Error::new(io::ErrorKind::Other, "invalid rle length"));
+			}
+			if code[0] & 0x80 == 0 {
+				try!(file.read_exact(&mut self.data[start_pixel * bytes_per_pixel..][..run_length * bytes_per_pixel]));
+				start_pixel = next_pixel;
+			} else {
+				// FIXME: read directly into self.data
+				let mut color = vec![0; bytes_per_pixel];
+				try!(file.read_exact(&mut color));
+				while start_pixel < next_pixel {
+					self.data[start_pixel * bytes_per_pixel..][..bytes_per_pixel].clone_from_slice(&color);
+					start_pixel += 1;
+				}
+			}
+		}
+		Ok(())
+	}
+}
+
+/*
 bool TGAImage::load_rle_data(std::ifstream &in) {
 	unsigned long pixelcount = width*height;
 	unsigned long currentpixel = 0;
