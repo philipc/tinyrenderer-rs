@@ -105,6 +105,15 @@ impl TgaColor {
 			buf[3] = self.a;
 		}
 	}
+
+	fn intensity(&self, intensity: f64) -> Self {
+		TgaColor {
+			r: (self.r as f64 * intensity).round() as u8,
+			g: (self.g as f64 * intensity).round() as u8,
+			b: (self.b as f64 * intensity).round() as u8,
+			a: 255,
+		}
+	}
 }
 
 /*
@@ -775,10 +784,10 @@ impl TgaImage {
 		}
 	}
 
-	fn barycentric(&self, p: vec::Vec2<f64>,
-		  p0: vec::Vec3<f64>,
-		  p1: vec::Vec3<f64>,
-		  p2: vec::Vec3<f64>)
+	fn barycentric(&self, p: &vec::Vec2<f64>,
+		  p0: &vec::Vec3<f64>,
+		  p1: &vec::Vec3<f64>,
+		  p2: &vec::Vec3<f64>)
 		  -> Option<vec::Vec3<f64>> {
 		let v1 = vec::Vec3::new(p1.x - p0.x, p2.x - p0.x, p0.x - p.x);
 		let v2 = vec::Vec3::new(p1.y - p0.y, p2.y - p0.y, p0.y - p.y);
@@ -815,24 +824,25 @@ impl TgaImage {
 	}
 
 	pub fn fill_float(&mut self,
-		     p0: vec::Vec3<f64>,
-		     p1: vec::Vec3<f64>,
-		     p2: vec::Vec3<f64>,
-		     color: &TgaColor,
-		     zbuffer: &mut [f64]) {
+		     p0: &vec::Vec3<f64>, p1: &vec::Vec3<f64>, p2: &vec::Vec3<f64>,
+		     t0: &vec::Vec3<f64>, t1: &vec::Vec3<f64>, t2: &vec::Vec3<f64>,
+		     intensity: f64, texture: &TgaImage, zbuffer: &mut [f64]) {
 		let minx = cmp::max(0, p0.x.min(p1.x.min(p2.x)).ceil() as i32);
 		let miny = cmp::max(0, p0.y.min(p1.y.min(p2.y)).ceil() as i32);
 		let maxx = cmp::min(self.width as i32 - 1, p0.x.max(p1.x.max(p2.x)).floor() as i32);
 		let maxy = cmp::min(self.height as i32 - 1, p0.y.max(p1.y.max(p2.y)).floor() as i32);
 		for y in miny .. maxy + 1 {
 			for x in minx .. maxx + 1 {
-				match self.barycentric(vec::Vec2::new(x as f64, y as f64), p0, p1, p2) {
+				match self.barycentric(&vec::Vec2::new(x as f64, y as f64), p0, p1, p2) {
 					None => (),
 					Some(bc) => {
 						let z = p0.z * bc.x + p1.z * bc.y + p2.z * bc.z;
 						if zbuffer[x as usize + y as usize * self.width] < z {
 							zbuffer[x as usize + y as usize * self.width] = z;
-							self.set(x as usize, y as usize, color);
+							let diffuse_x = ((t0.x * bc.x + t1.x * bc.y + t2.x * bc.z) * texture.get_width() as f64).floor() as usize;
+							let diffuse_y = ((t0.y * bc.x + t1.y * bc.y + t2.y * bc.z) * texture.get_height() as f64).floor() as usize;
+							let color = texture.get(diffuse_x, diffuse_y).intensity(intensity);
+							self.set(x as usize, y as usize, &color);
 						}
 					}
 				}

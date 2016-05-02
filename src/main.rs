@@ -37,6 +37,7 @@ fn main() {
 
 	let mut model = model::Model::new();
 	model.read(Path::new("african_head.obj")).unwrap();
+	let texture = tga::TgaImage::read(Path::new("african_head_diffuse.tga")).unwrap();
 
 	match lesson {
 		Lesson::L1Model => {
@@ -51,7 +52,7 @@ fn main() {
 			model.fill(&mut image, 0, 0, width, height);
 		},
 		Lesson::L3Model => {
-			model.fill_float(&mut image, 0, 0, width, height);
+			model.fill_float(&mut image, &texture, 0, 0, width, height);
 		},
 	}
 

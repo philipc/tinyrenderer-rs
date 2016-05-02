@@ -33,16 +33,23 @@ impl From<num::ParseIntError> for ModelError {
 	}
 }
 
+struct Face {
+	vert: Vec<usize>,
+	texture: Vec<usize>,
+}
+
 pub struct Model {
-	verts: Vec<vec::Vec3<f64>>,
-	faces: Vec<Vec<usize>>,
+	vert: Vec<vec::Vec3<f64>>,
+	texture: Vec<vec::Vec3<f64>>,
+	face: Vec<Face>,
 }
 
 impl Model {
 	pub fn new() -> Self {
 		Model {
-			verts: Vec::new(),
-			faces: Vec::new(),
+			vert: Vec::new(),
+			texture: Vec::new(),
+			face: Vec::new(),
 		}
 	}
 
@@ -52,7 +59,8 @@ impl Model {
 			let line = try!(line);
 			let mut words = line.split_whitespace();
 			match words.next() {
-				Some("v") => try!(self.read_vert(&mut words)),
+				Some("v") => self.vert.push(try!(Model::read_vert(&mut words))),
+				Some("vt") => self.texture.push(try!(Model::read_vert(&mut words))),
 				Some("f") => try!(self.read_face(&mut words)),
 				Some(_) => (),
 				None => (),
@@ -61,16 +69,14 @@ impl Model {
 		Ok(())
 	}
 
-	fn read_vert<'a, I: Iterator<Item=&'a str>>(&mut self, words: &mut I) -> Result<(), ModelError> {
-		let x = try!(self.read_f64(words));
-		let y = try!(self.read_f64(words));
-		let z = try!(self.read_f64(words));
-		let vert = vec::Vec3::new(x, y, z);
-		self.verts.push(vert);
-		Ok(())
+	fn read_vert<'a, I: Iterator<Item=&'a str>>(words: &mut I) -> Result<vec::Vec3<f64>, ModelError> {
+		let x = try!(Model::read_f64(words));
+		let y = try!(Model::read_f64(words));
+		let z = try!(Model::read_f64(words));
+		Ok(vec::Vec3::new(x, y, z))
 	}
 
-	fn read_f64<'a, I: Iterator<Item=&'a str>>(&mut self, words: &mut I) -> Result<f64, ModelError> {
+	fn read_f64<'a, I: Iterator<Item=&'a str>>(words: &mut I) -> Result<f64, ModelError> {
 		match words.next() {
 			Some(word) => Ok(try!(word.parse::<f64>())),
 			None => Err(ModelError::Parse("missing f64".into())),
@@ -78,23 +84,29 @@ impl Model {
 	}
 
 	fn read_face<'a, I: Iterator<Item=&'a str>>(&mut self, words: &mut I) -> Result<(), ModelError> {
-		let mut verts = Vec::new();
+		let mut vert = Vec::new();
+		let mut texture = Vec::new();
 		for word in words {
-			verts.push(try!(self.read_idx(word)));
+			let mut indices = word.split('/');
+			vert.push(try!(Model::read_idx(indices.next(), self.vert.len())));
+			texture.push(try!(Model::read_idx(indices.next(), self.texture.len())));
 		}
-		if verts.len() < 3 {
-			return Err(ModelError::Parse("too few vertices in face".into()));
+		if vert.len() != 3 {
+			return Err(ModelError::Parse("face must have exactly 3 vertices".into()));
 		}
-		self.faces.push(verts);
+		self.face.push(Face {
+			vert: vert,
+			texture: texture,
+		});
 		Ok(())
 	}
 
-	fn read_idx(&self, word: &str) -> Result<usize, ModelError> {
-		let idx = match word.split('/').next() {
+	fn read_idx(word_opt: Option<&str>, len: usize) -> Result<usize, ModelError> {
+		let idx = match word_opt {
 			Some(word) => try!(word.parse::<usize>()) - 1,
 			None => return Err(ModelError::Parse("missing idx".into())),
 		};
-		if idx >= self.verts.len() {
+		if idx >= len {
 			return Err(ModelError::Parse("face idx is too large".into()));
 		};
 		Ok(idx)
@@ -104,11 +116,11 @@ impl Model {
 		let width = w as f64;
 		let height = h as f64;
 
-		for face in &self.faces {
-			for (i, idx0) in face.iter().enumerate() {
-				let idx1 = face.get(i + 1).unwrap_or(face.first().unwrap());
-				let v0 = &self.verts[*idx0];
-				let v1 = &self.verts[*idx1];
+		for face in &self.face {
+			for (i, idx0) in face.vert.iter().enumerate() {
+				let idx1 = face.vert.get(i + 1).unwrap_or(face.vert.first().unwrap());
+				let v0 = &self.vert[*idx0];
+				let v1 = &self.vert[*idx1];
 				let p0 = vec::Vec2::new(
 					x + ((v0.x + 1f64) * width / 2f64) as i32,
 					y + ((v0.y + 1f64) * height / 2f64) as i32);
@@ -126,10 +138,10 @@ impl Model {
 		let width = w as f64;
 		let height = h as f64;
 
-		for face in &self.faces {
-			let v0 = &self.verts[face[0]];
-			let v1 = &self.verts[face[1]];
-			let v2 = &self.verts[face[2]];
+		for face in &self.face {
+			let v0 = &self.vert[face.vert[0]];
+			let v1 = &self.vert[face.vert[1]];
+			let v2 = &self.vert[face.vert[2]];
 
 			let intensity = (&v2.sub(v0)).cross(&v1.sub(v0)).normalize().dot(&light_dir);
 			if intensity <= 0f64 {
@@ -153,23 +165,26 @@ impl Model {
 	}
 
 	#[allow(dead_code)]
-	pub fn fill_float(&self, image: &mut tga::TgaImage, x: i32, y: i32, w: i32, h: i32) {
+	pub fn fill_float(&self, image: &mut tga::TgaImage, texture: &tga::TgaImage,
+			  x: i32, y: i32, w: i32, h: i32) {
 		let light_dir = vec::Vec3::new(0f64, 0f64, -1f64);
 		let width = w as f64;
 		let height = h as f64;
 		let mut zbuffer = vec![f64::MIN; image.get_width() * image.get_height()];
 
-		for face in &self.faces {
-			let v0 = &self.verts[face[0]];
-			let v1 = &self.verts[face[1]];
-			let v2 = &self.verts[face[2]];
+		for face in &self.face {
+			let v0 = &self.vert[face.vert[0]];
+			let v1 = &self.vert[face.vert[1]];
+			let v2 = &self.vert[face.vert[2]];
+
+			let t0 = &self.texture[face.texture[0]];
+			let t1 = &self.texture[face.texture[1]];
+			let t2 = &self.texture[face.texture[2]];
 
 			let intensity = (&v2.sub(v0)).cross(&v1.sub(v0)).normalize().dot(&light_dir);
 			if intensity <= 0f64 {
 				continue;
 			}
-			let intensity = (intensity * 255f64) as u8;
-			let color = tga::TgaColor::new(intensity, intensity, intensity, 255);
 
 			let p0 = vec::Vec3::new(
 				x as f64 + (v0.x + 1f64) * width / 2f64,
@@ -184,7 +199,7 @@ impl Model {
 				y as f64 + (v2.y + 1f64) * height / 2f64,
 				v2.z);
 
-			image.fill_float(p0, p1, p2, &color, &mut zbuffer[..]);
+			image.fill_float(&p0, &p1, &p2, t0, t1, t2, intensity, texture, &mut zbuffer[..]);
 		}
 	}
 }
