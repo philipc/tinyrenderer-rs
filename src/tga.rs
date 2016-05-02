@@ -372,7 +372,7 @@ impl TgaImage {
 			width: From::from(self.width as u16),
 			height: From::from(self.height as u16),
 			bits_per_pixel: self.bits_per_pixel() as u8,
-			image_descriptor: 0x20 + self.alpha_bits_per_pixel() as u8 , // top-left origin
+			image_descriptor: self.alpha_bits_per_pixel() as u8,
 			.. Default::default()
 		};
 		try!(file.write_all(header.as_u8_slice()));

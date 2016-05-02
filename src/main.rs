@@ -54,7 +54,6 @@ fn main() {
 			model.fill_float(&mut image, 0, 0, width, height);
 		},
 	}
-	image.flip_vertically();
 
 	let path = Path::new("output.tga");
 	image.write(path, true).unwrap();
