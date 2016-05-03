@@ -670,18 +670,18 @@ impl TgaImage {
 		    mut p0: vec::Vec2<i32>,
 		    mut p1: vec::Vec2<i32>,
 		    color: &TgaColor) {
-		let dx = (p1.x - p0.x).abs();
-		let dy = (p1.y - p0.y).abs();
+		let dx = (p1.0[0] - p0.0[0]).abs();
+		let dy = (p1.0[1] - p0.0[1]).abs();
 		let steep = dy > dx;
 		if steep {
-			std::mem::swap(&mut p0.x, &mut p0.y);
-			std::mem::swap(&mut p1.x, &mut p1.y);
+			p0.0.swap(0, 1);
+			p1.0.swap(0, 1);
 		};
-		if p0.x > p1.x {
-			std::mem::swap(&mut p0.x, &mut p1.x);
-			std::mem::swap(&mut p0.y, &mut p1.y);
+		if p0.0[0] > p1.0[0] {
+			std::mem::swap(&mut p0.0[0], &mut p1.0[0]);
+			std::mem::swap(&mut p0.0[1], &mut p1.0[1]);
 		}
-		let mut s = LineState::new(p0.x, p0.y, p1.x, p1.y, LineStateRound::Nearest);
+		let mut s = LineState::new(p0.0[0], p0.0[1], p1.0[0], p1.0[1], LineStateRound::Nearest);
 		loop {
 			if steep {
 				self.set(s.b as usize, s.a as usize, color);
@@ -716,25 +716,25 @@ impl TgaImage {
 		    mut p1: vec::Vec2<i32>,
 		    mut p2: vec::Vec2<i32>,
 		    color: &TgaColor) {
-		if p0.y == p1.y && p0.y == p2.y {
+		if p0.0[1] == p1.0[1] && p0.0[1] == p2.0[1] {
 			return;
 		}
-		if p0.y > p1.y {
+		if p0.0[1] > p1.0[1] {
 			std::mem::swap(&mut p0, &mut p1);
 		}
-		if p0.y > p2.y {
+		if p0.0[1] > p2.0[1] {
 			std::mem::swap(&mut p0, &mut p2);
 		}
-		if p1.y > p2.y {
+		if p1.0[1] > p2.0[1] {
 			std::mem::swap(&mut p1, &mut p2);
 		}
 		let (mut roundl, mut roundr) = (LineStateRound::Left, LineStateRound::Right);
-		let order = (p2.x - p0.x) * (p1.y - p0.y) - (p1.x - p0.x) * (p2.y - p0.y);
+		let order = (p2.0[0] - p0.0[0]) * (p1.0[1] - p0.0[1]) - (p1.0[0] - p0.0[0]) * (p2.0[1] - p0.0[1]);
 		if order < 0 {
 			std::mem::swap(&mut roundl, &mut roundr);
 		}
-		let mut l = LineState::new(p0.y, p0.x, p1.y, p1.x, roundl);
-		let mut r = LineState::new(p0.y, p0.x, p2.y, p2.x, roundr);
+		let mut l = LineState::new(p0.0[1], p0.0[0], p1.0[1], p1.0[0], roundl);
+		let mut r = LineState::new(p0.0[1], p0.0[0], p2.0[1], p2.0[0], roundr);
 		loop {
 			if (r.b - l.b) * order >= 0 {
 				self.horizontal_line(l.b, r.b, r.a, color);
@@ -744,7 +744,7 @@ impl TgaImage {
 			}
 			r.step();
 		}
-		l = LineState::new(p1.y, p1.x, p2.y, p2.x, roundl);
+		l = LineState::new(p1.0[1], p1.0[0], p2.0[1], p2.0[0], roundl);
 		loop {
 			if !l.step() {
 				break;
@@ -765,13 +765,13 @@ impl TgaImage {
 	// 0 = l1 (x1 - x0) + l2 (x2 - x0) + (x0 - x)
 	// 0 = l1 (y1 - y0) + l2 (y2 - y0) + (y0 - y)
 	// Solve using cross product.
-	fn inside(&self, p: vec::Vec2<i32>,
-		  p0: vec::Vec2<i32>,
-		  p1: vec::Vec2<i32>,
-		  p2: vec::Vec2<i32>)
+	fn inside(&self, p: &vec::Vec2<i32>,
+		  p0: &vec::Vec2<i32>,
+		  p1: &vec::Vec2<i32>,
+		  p2: &vec::Vec2<i32>)
 		  -> bool {
-		let v1 = vec::Vec3::new(p1.x - p0.x, p2.x - p0.x, p0.x - p.x);
-		let v2 = vec::Vec3::new(p1.y - p0.y, p2.y - p0.y, p0.y - p.y);
+		let v1 = vec::Vec3::new(p1.0[0] - p0.0[0], p2.0[0] - p0.0[0], p0.0[0] - p.0[0]);
+		let v2 = vec::Vec3::new(p1.0[1] - p0.0[1], p2.0[1] - p0.0[1], p0.0[1] - p.0[1]);
 		let (l1, l2, scale) = v1.cross(&v2).as_tuple();
 		if scale == 0 {
 			return false;
@@ -789,8 +789,8 @@ impl TgaImage {
 		  p1: &vec::Vec3<f64>,
 		  p2: &vec::Vec3<f64>)
 		  -> Option<vec::Vec3<f64>> {
-		let v1 = vec::Vec3::new(p1.x - p0.x, p2.x - p0.x, p0.x - p.x);
-		let v2 = vec::Vec3::new(p1.y - p0.y, p2.y - p0.y, p0.y - p.y);
+		let v1 = vec::Vec3::new(p1.0[0] - p0.0[0], p2.0[0] - p0.0[0], p0.0[0] - p.0[0]);
+		let v2 = vec::Vec3::new(p1.0[1] - p0.0[1], p2.0[1] - p0.0[1], p0.0[1] - p.0[1]);
 		let (l1, l2, scale) = v1.cross(&v2).as_tuple();
 		if scale == 0f64 {
 			return None;
@@ -806,17 +806,17 @@ impl TgaImage {
 
 	#[allow(dead_code)]
 	pub fn fill2(&mut self,
-		     p0: vec::Vec2<i32>,
-		     p1: vec::Vec2<i32>,
-		     p2: vec::Vec2<i32>,
+		     p0: &vec::Vec2<i32>,
+		     p1: &vec::Vec2<i32>,
+		     p2: &vec::Vec2<i32>,
 		     color: &TgaColor) {
-		let minx = cmp::max(0, cmp::min(p0.x, cmp::min(p1.x, p2.x)));
-		let miny = cmp::max(0, cmp::min(p0.y, cmp::min(p1.y, p2.y)));
-		let maxx = cmp::min(self.width as i32 - 1, cmp::max(p0.x, cmp::max(p1.x, p2.x)));
-		let maxy = cmp::min(self.height as i32 - 1, cmp::max(p0.y, cmp::max(p1.y, p2.y)));
+		let minx = cmp::max(0, cmp::min(p0.0[0], cmp::min(p1.0[0], p2.0[0])));
+		let miny = cmp::max(0, cmp::min(p0.0[1], cmp::min(p1.0[1], p2.0[1])));
+		let maxx = cmp::min(self.width as i32 - 1, cmp::max(p0.0[0], cmp::max(p1.0[0], p2.0[0])));
+		let maxy = cmp::min(self.height as i32 - 1, cmp::max(p0.0[1], cmp::max(p1.0[1], p2.0[1])));
 		for y in miny .. maxy + 1 {
 			for x in minx .. maxx + 1 {
-				if self.inside(vec::Vec2::new(x, y), p0, p1, p2) {
+				if self.inside(&vec::Vec2::new(x, y), p0, p1, p2) {
 					self.set(x as usize, y as usize, color);
 				}
 			}
@@ -827,20 +827,20 @@ impl TgaImage {
 		     p0: &vec::Vec3<f64>, p1: &vec::Vec3<f64>, p2: &vec::Vec3<f64>,
 		     t0: &vec::Vec3<f64>, t1: &vec::Vec3<f64>, t2: &vec::Vec3<f64>,
 		     intensity: f64, texture: &TgaImage, zbuffer: &mut [f64]) {
-		let minx = cmp::max(0, p0.x.min(p1.x.min(p2.x)).ceil() as i32);
-		let miny = cmp::max(0, p0.y.min(p1.y.min(p2.y)).ceil() as i32);
-		let maxx = cmp::min(self.width as i32 - 1, p0.x.max(p1.x.max(p2.x)).floor() as i32);
-		let maxy = cmp::min(self.height as i32 - 1, p0.y.max(p1.y.max(p2.y)).floor() as i32);
+		let minx = cmp::max(0, p0.0[0].min(p1.0[0].min(p2.0[0])).ceil() as i32);
+		let miny = cmp::max(0, p0.0[1].min(p1.0[1].min(p2.0[1])).ceil() as i32);
+		let maxx = cmp::min(self.width as i32 - 1, p0.0[0].max(p1.0[0].max(p2.0[0])).floor() as i32);
+		let maxy = cmp::min(self.height as i32 - 1, p0.0[1].max(p1.0[1].max(p2.0[1])).floor() as i32);
 		for y in miny .. maxy + 1 {
 			for x in minx .. maxx + 1 {
 				match self.barycentric(&vec::Vec2::new(x as f64, y as f64), p0, p1, p2) {
 					None => (),
 					Some(bc) => {
-						let z = p0.z * bc.x + p1.z * bc.y + p2.z * bc.z;
+						let z = p0.0[2] * bc.0[0] + p1.0[2] * bc.0[1] + p2.0[2] * bc.0[2];
 						if zbuffer[x as usize + y as usize * self.width] < z {
 							zbuffer[x as usize + y as usize * self.width] = z;
-							let diffuse_x = ((t0.x * bc.x + t1.x * bc.y + t2.x * bc.z) * texture.get_width() as f64).floor() as usize;
-							let diffuse_y = ((t0.y * bc.x + t1.y * bc.y + t2.y * bc.z) * texture.get_height() as f64).floor() as usize;
+							let diffuse_x = ((t0.0[0] * bc.0[0] + t1.0[0] * bc.0[1] + t2.0[0] * bc.0[2]) * texture.get_width() as f64).floor() as usize;
+							let diffuse_y = ((t0.0[1] * bc.0[0] + t1.0[1] * bc.0[1] + t2.0[1] * bc.0[2]) * texture.get_height() as f64).floor() as usize;
 							let color = texture.get(diffuse_x, diffuse_y).intensity(intensity);
 							self.set(x as usize, y as usize, &color);
 						}

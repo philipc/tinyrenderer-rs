@@ -122,11 +122,11 @@ impl Model {
 				let v0 = &self.vert[*idx0];
 				let v1 = &self.vert[*idx1];
 				let p0 = vec::Vec2::new(
-					x + ((v0.x + 1f64) * width / 2f64) as i32,
-					y + ((v0.y + 1f64) * height / 2f64) as i32);
+					x + ((v0.0[0] + 1f64) * width / 2f64) as i32,
+					y + ((v0.0[1] + 1f64) * height / 2f64) as i32);
 				let p1 = vec::Vec2::new(
-					x + ((v1.x + 1f64) * width / 2f64) as i32,
-					y + ((v1.y + 1f64) * height / 2f64) as i32);
+					x + ((v1.0[0] + 1f64) * width / 2f64) as i32,
+					y + ((v1.0[1] + 1f64) * height / 2f64) as i32);
 				image.line(p0, p1, color);
 			}
 		}
@@ -151,14 +151,14 @@ impl Model {
 			let color = tga::TgaColor::new(intensity, intensity, intensity, 255);
 
 			let p0 = vec::Vec2::new(
-				x + ((v0.x + 1f64) * width / 2f64 + 0.5f64) as i32,
-				y + ((v0.y + 1f64) * height / 2f64 + 0.5f64) as i32);
+				x + ((v0.0[0] + 1f64) * width / 2f64 + 0.5f64) as i32,
+				y + ((v0.0[1] + 1f64) * height / 2f64 + 0.5f64) as i32);
 			let p1 = vec::Vec2::new(
-				x + ((v1.x + 1f64) * width / 2f64 + 0.5f64) as i32,
-				y + ((v1.y + 1f64) * height / 2f64 + 0.5f64) as i32);
+				x + ((v1.0[0] + 1f64) * width / 2f64 + 0.5f64) as i32,
+				y + ((v1.0[1] + 1f64) * height / 2f64 + 0.5f64) as i32);
 			let p2 = vec::Vec2::new(
-				x + ((v2.x + 1f64) * width / 2f64 + 0.5f64) as i32,
-				y + ((v2.y + 1f64) * height / 2f64 + 0.5f64) as i32);
+				x + ((v2.0[0] + 1f64) * width / 2f64 + 0.5f64) as i32,
+				y + ((v2.0[1] + 1f64) * height / 2f64 + 0.5f64) as i32);
 
 			image.fill(p0, p1, p2, &color);
 		}
@@ -187,17 +187,17 @@ impl Model {
 			}
 
 			let p0 = vec::Vec3::new(
-				x as f64 + (v0.x + 1f64) * width / 2f64,
-				y as f64 + (v0.y + 1f64) * height / 2f64,
-				v0.z);
+				x as f64 + (v0.0[0] + 1f64) * width / 2f64,
+				y as f64 + (v0.0[1] + 1f64) * height / 2f64,
+				v0.0[2]);
 			let p1 = vec::Vec3::new(
-				x as f64 + (v1.x + 1f64) * width / 2f64,
-				y as f64 + (v1.y + 1f64) * height / 2f64,
-				v1.z);
+				x as f64 + (v1.0[0] + 1f64) * width / 2f64,
+				y as f64 + (v1.0[1] + 1f64) * height / 2f64,
+				v1.0[2]);
 			let p2 = vec::Vec3::new(
-				x as f64 + (v2.x + 1f64) * width / 2f64,
-				y as f64 + (v2.y + 1f64) * height / 2f64,
-				v2.z);
+				x as f64 + (v2.0[0] + 1f64) * width / 2f64,
+				y as f64 + (v2.0[1] + 1f64) * height / 2f64,
+				v2.0[2]);
 
 			image.fill_float(&p0, &p1, &p2, t0, t1, t2, intensity, texture, &mut zbuffer[..]);
 		}

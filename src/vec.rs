@@ -1,83 +1,62 @@
+extern crate vecmath;
+
 use std::ops;
 
-#[derive(Clone, Copy)]
-pub struct Vec2<T> {
-	pub x: T,
-	pub y: T,
-}
-
-impl<T> Vec2<T> {
-	pub fn new(x: T, y: T) -> Self {
-		Vec2 {
-			x: x,
-			y: y,
-		}
-	}
-}
+pub struct Vec2<T> (pub vecmath::Vector2<T>);
 
 impl<T> Vec2<T> where T: Copy {
+	pub fn new(x: T, y: T) -> Self {
+		Vec2([x, y])
+	}
+
 	#[allow(dead_code)]
         pub fn as_tuple(&self) -> (T, T) {
-                (self.x, self.y)
+                (self.0[0], self.0[1])
         }
 }
 
-#[derive(Clone, Copy)]
-pub struct Vec3<T> {
-	pub x: T,
-	pub y: T,
-	pub z: T,
-}
-
-impl<T> Vec3<T> {
-	pub fn new(x: T, y: T, z: T) -> Self {
-		Vec3 {
-			x: x,
-			y: y,
-			z: z,
-		}
-	}
-}
+pub struct Vec3<T> (pub vecmath::Vector3<T>);
 
 impl<T> Vec3<T> where T: Copy {
+	pub fn new(x: T, y: T, z: T) -> Self {
+		Vec3([x, y, z])
+	}
+
         pub fn as_tuple(&self) -> (T, T, T) {
-                (self.x, self.y, self.z)
+                (self.0[0], self.0[1], self.0[2])
         }
 }
 
 impl<T> Vec3<T> where T: Copy + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<T, Output = T> + ops::Div<T, Output = T> {
 	pub fn sub(&self, v: &Vec3<T>) -> Self {
-		Vec3 {
-			x: self.x - v.x,
-			y: self.y - v.y,
-			z: self.z - v.z,
-		}
+		Vec3([
+		     self.0[0] - v.0[0],
+		     self.0[1] - v.0[1],
+		     self.0[2] - v.0[2]])
 	}
 
 	pub fn dot(&self, v: &Vec3<T>) -> T {
-		self.x * v.x + self.y * v.y + self.z * v.z
+		self.0[0] * v.0[0] + self.0[1] * v.0[1] + self.0[2] * v.0[2]
 	}
 
 	pub fn cross(&self, v: &Vec3<T>) -> Self {
-		Vec3 {
-			x: self.y * v.z - self.z * v.y,
-			y: self.z * v.x - self.x * v.z,
-			z: self.x * v.y - self.y * v.x,
-		}
+		Vec3([
+		     self.0[1] * v.0[2] - self.0[2] * v.0[1],
+		     self.0[2] * v.0[0] - self.0[0] * v.0[2],
+		     self.0[0] * v.0[1] - self.0[1] * v.0[0]])
 	}
 }
 
 impl Vec3<f64> {
 	pub fn norm(&self) -> f64 {
-		(self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
+		(self.0[0] * self.0[0] + self.0[1] * self.0[1] + self.0[2] * self.0[2]).sqrt()
 	}
 
 	pub fn normalize(&mut self) -> Self {
 		let n = self.norm();
-		Vec3 {
-			x: self.x / n,
-			y: self.y / n,
-			z: self.z / n,
-		}
+		Vec3([
+		     self.0[0] / n,
+		     self.0[1] / n,
+		     self.0[2] / n ])
 	}
 }
