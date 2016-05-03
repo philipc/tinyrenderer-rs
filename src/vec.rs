@@ -29,21 +29,15 @@ impl<T> Vec3<T> where T: Copy {
 
 impl<T> Vec3<T> where T: Copy + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<T, Output = T> + ops::Div<T, Output = T> {
 	pub fn sub(&self, v: &Vec3<T>) -> Self {
-		Vec3([
-		     self.0[0] - v.0[0],
-		     self.0[1] - v.0[1],
-		     self.0[2] - v.0[2]])
+		Vec3(vecmath::vec3_sub(self.0, v.0))
 	}
 
 	pub fn dot(&self, v: &Vec3<T>) -> T {
-		self.0[0] * v.0[0] + self.0[1] * v.0[1] + self.0[2] * v.0[2]
+		vecmath::vec3_dot(self.0, v.0)
 	}
 
 	pub fn cross(&self, v: &Vec3<T>) -> Self {
-		Vec3([
-		     self.0[1] * v.0[2] - self.0[2] * v.0[1],
-		     self.0[2] * v.0[0] - self.0[0] * v.0[2],
-		     self.0[0] * v.0[1] - self.0[1] * v.0[0]])
+		Vec3(vecmath::vec3_cross(self.0, v.0))
 	}
 }
 
