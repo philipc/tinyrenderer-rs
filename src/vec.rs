@@ -9,7 +9,6 @@ impl<T> Vec2<T> where T: Copy {
 		Vec2([x, y])
 	}
 
-	#[allow(dead_code)]
         pub fn as_tuple(&self) -> (T, T) {
                 (self.0[0], self.0[1])
         }

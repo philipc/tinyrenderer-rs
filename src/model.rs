@@ -121,10 +121,10 @@ impl Model {
 				let idx1 = face.vert.get(i + 1).unwrap_or(face.vert.first().unwrap());
 				let v0 = &self.vert[*idx0];
 				let v1 = &self.vert[*idx1];
-				let p0 = vec::Vec2::new(
+				let p0 = &vec::Vec2::new(
 					x + ((v0.0[0] + 1f64) * width / 2f64) as i32,
 					y + ((v0.0[1] + 1f64) * height / 2f64) as i32);
-				let p1 = vec::Vec2::new(
+				let p1 = &vec::Vec2::new(
 					x + ((v1.0[0] + 1f64) * width / 2f64) as i32,
 					y + ((v1.0[1] + 1f64) * height / 2f64) as i32);
 				image.line(p0, p1, color);

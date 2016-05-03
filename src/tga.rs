@@ -666,22 +666,24 @@ impl LineState {
 }
 
 impl TgaImage {
-	pub fn line(&mut self,
-		    mut p0: vec::Vec2<i32>,
-		    mut p1: vec::Vec2<i32>,
+	pub fn line<'a>(&mut self,
+		    p0: &'a vec::Vec2<i32>,
+		    p1: &'a vec::Vec2<i32>,
 		    color: &TgaColor) {
-		let dx = (p1.0[0] - p0.0[0]).abs();
-		let dy = (p1.0[1] - p0.0[1]).abs();
+		let (mut x0, mut y0) = p0.as_tuple();
+		let (mut x1, mut y1) = p1.as_tuple();
+		let dx = (x1 - x0).abs();
+		let dy = (y1 - y0).abs();
 		let steep = dy > dx;
 		if steep {
-			p0.0.swap(0, 1);
-			p1.0.swap(0, 1);
+			std::mem::swap(&mut x0, &mut y0);
+			std::mem::swap(&mut x1, &mut y1);
 		};
-		if p0.0[0] > p1.0[0] {
-			std::mem::swap(&mut p0.0[0], &mut p1.0[0]);
-			std::mem::swap(&mut p0.0[1], &mut p1.0[1]);
+		if x0 > x1 {
+			std::mem::swap(&mut x0, &mut x1);
+			std::mem::swap(&mut y0, &mut y1);
 		}
-		let mut s = LineState::new(p0.0[0], p0.0[1], p1.0[0], p1.0[1], LineStateRound::Nearest);
+		let mut s = LineState::new(x0, y0, x1, y1, LineStateRound::Nearest);
 		loop {
 			if steep {
 				self.set(s.b as usize, s.a as usize, color);
