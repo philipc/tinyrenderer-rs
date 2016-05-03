@@ -132,7 +132,6 @@ impl Model {
 		}
 	}
 
-	#[allow(dead_code)]
 	pub fn fill(&self, image: &mut tga::TgaImage, x: i32, y: i32, w: i32, h: i32) {
 		let light_dir = vec::Vec3::new(0f64, 0f64, -1f64);
 		let width = w as f64;
@@ -164,12 +163,9 @@ impl Model {
 		}
 	}
 
-	#[allow(dead_code)]
 	pub fn fill_float(&self, image: &mut tga::TgaImage, texture: &tga::TgaImage,
-			  x: i32, y: i32, w: i32, h: i32) {
+			  transform: &vec::Transform4<f64>) {
 		let light_dir = vec::Vec3::new(0f64, 0f64, -1f64);
-		let width = w as f64;
-		let height = h as f64;
 		let mut zbuffer = vec![f64::MIN; image.get_width() * image.get_height()];
 
 		for face in &self.face {
@@ -186,20 +182,11 @@ impl Model {
 				continue;
 			}
 
-			let p0 = vec::Vec3::new(
-				x as f64 + (v0.0[0] + 1f64) * width / 2f64,
-				y as f64 + (v0.0[1] + 1f64) * height / 2f64,
-				v0.0[2]);
-			let p1 = vec::Vec3::new(
-				x as f64 + (v1.0[0] + 1f64) * width / 2f64,
-				y as f64 + (v1.0[1] + 1f64) * height / 2f64,
-				v1.0[2]);
-			let p2 = vec::Vec3::new(
-				x as f64 + (v2.0[0] + 1f64) * width / 2f64,
-				y as f64 + (v2.0[1] + 1f64) * height / 2f64,
-				v2.0[2]);
+			let p0 = &v0.transform(transform);
+			let p1 = &v1.transform(transform);
+			let p2 = &v2.transform(transform);
 
-			image.fill_float(&p0, &p1, &p2, t0, t1, t2, intensity, texture, &mut zbuffer[..]);
+			image.fill_float(p0, p1, p2, t0, t1, t2, intensity, texture, &mut zbuffer[..]);
 		}
 	}
 }

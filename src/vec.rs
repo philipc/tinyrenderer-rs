@@ -52,4 +52,57 @@ impl Vec3<f64> {
 		     self.0[1] / n,
 		     self.0[2] / n ])
 	}
+
+	pub fn to_vec4(&self) -> Vec4<f64> {
+		Vec4([
+		     self.0[0],
+		     self.0[1],
+		     self.0[2],
+		     1f64 ])
+	}
+
+	pub fn transform(&self, transform: &Transform4<f64>) -> Self {
+		self.to_vec4().transform(transform).to_vec3()
+	}
+}
+
+pub struct Vec4<T> (pub vecmath::Vector4<T>);
+
+impl Vec4<f64> {
+	pub fn to_vec3(&self) -> Vec3<f64> {
+		let w = self.0[3];
+		Vec3([
+		     self.0[0] / w,
+		     self.0[1] / w,
+		     self.0[2] / w ])
+	}
+
+	pub fn transform(&self, transform: &Transform4<f64>) -> Self {
+		Vec4(vecmath::row_mat4_transform(transform.0, self.0))
+	}
+}
+
+pub struct Transform4<T> (pub vecmath::Matrix4<T>);
+
+impl Transform4<f64> {
+	pub fn mul(&self, mat: &Transform4<f64>) -> Self {
+		Transform4(vecmath::row_mat4_mul(self.0, mat.0))
+	}
+}
+
+pub fn position(x: f64, y: f64, z: f64, w: f64, h: f64, d: f64) -> Transform4<f64> {
+	let mut mat = vecmath::mat4_id();
+	mat[0][3] = x + w / 2f64;
+	mat[1][3] = y + h / 2f64;
+	mat[2][3] = z + d / 2f64;
+	mat[0][0] = w / 2f64;
+	mat[1][1] = h / 2f64;
+	mat[2][2] = d / 2f64;
+	Transform4(mat)
+}
+
+pub fn project(z: f64) -> Transform4<f64> {
+	let mut mat = vecmath::mat4_id();
+	mat[3][2] = -1f64 / z;
+	Transform4(mat)
 }

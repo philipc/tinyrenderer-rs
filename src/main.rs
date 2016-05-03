@@ -12,6 +12,7 @@ enum Lesson {
 	L2Triangle,
 	L2Model,
 	L3Model,
+	L4Model,
 }
 
 fn main() {
@@ -22,13 +23,14 @@ fn main() {
 	//let lesson = Lesson::L1Model;
 	//let lesson = Lesson::L2Triangle;
 	//let lesson = Lesson::L2Model;
-	let lesson = Lesson::L3Model;
+	//let lesson = Lesson::L3Model;
+	let lesson = Lesson::L4Model;
 
 	let (width, height) = match lesson {
 		Lesson::L2Triangle => {
 			(200, 200)
 		},
-		Lesson::L1Model | Lesson::L2Model | Lesson::L3Model => {
+		Lesson::L1Model | Lesson::L2Model | Lesson::L3Model | Lesson::L4Model => {
 			(800, 800)
 		},
 	};
@@ -52,7 +54,15 @@ fn main() {
 			model.fill(&mut image, 0, 0, width, height);
 		},
 		Lesson::L3Model => {
-			model.fill_float(&mut image, &texture, 0, 0, width, height);
+			let transform = &vec::position(0f64, 0f64, 0f64, width as f64, height as f64, 255f64);
+			model.fill_float(&mut image, &texture, transform);
+		},
+		Lesson::L4Model => {
+			let position = &vec::position(width as f64 / 8f64, height as f64 / 8f64, 0f64,
+						      width as f64 * 0.75f64, height as f64 * 0.75f64, 255f64);
+			let camera = &vec::project(3f64);
+			let transform = &position.mul(camera);
+			model.fill_float(&mut image, &texture, transform);
 		},
 	}
 
