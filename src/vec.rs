@@ -90,7 +90,7 @@ impl Transform4<f64> {
 	}
 }
 
-pub fn position(x: f64, y: f64, z: f64, w: f64, h: f64, d: f64) -> Transform4<f64> {
+pub fn viewport(x: f64, y: f64, z: f64, w: f64, h: f64, d: f64) -> Transform4<f64> {
 	let mut mat = vecmath::mat4_id();
 	mat[0][3] = x + w / 2f64;
 	mat[1][3] = y + h / 2f64;
@@ -105,4 +105,22 @@ pub fn project(z: f64) -> Transform4<f64> {
 	let mut mat = vecmath::mat4_id();
 	mat[3][2] = -1f64 / z;
 	Transform4(mat)
+}
+
+pub fn lookat(eye: &Vec3<f64>, center: &Vec3<f64>, up: &Vec3<f64>) -> Transform4<f64> {
+	let mut translate = vecmath::mat4_id();
+	translate[0][3] = center.0[0];
+	translate[1][3] = center.0[1];
+	translate[2][3] = center.0[2];
+
+	let z = &eye.sub(center).normalize();
+	let x = &up.cross(z).normalize();
+	let y = &z.cross(x).normalize();
+	let mut rotate = vecmath::mat4_id();
+	for i in 0..3 {
+		rotate[0][i] = x.0[i];
+		rotate[1][i] = y.0[i];
+		rotate[2][i] = z.0[i];
+	}
+	Transform4(rotate).mul(&Transform4(translate))
 }

@@ -13,6 +13,7 @@ enum Lesson {
 	L2Model,
 	L3Model,
 	L4Model,
+	L5Model,
 }
 
 fn main() {
@@ -24,13 +25,14 @@ fn main() {
 	//let lesson = Lesson::L2Triangle;
 	//let lesson = Lesson::L2Model;
 	//let lesson = Lesson::L3Model;
-	let lesson = Lesson::L4Model;
+	//let lesson = Lesson::L4Model;
+	let lesson = Lesson::L5Model;
 
 	let (width, height) = match lesson {
 		Lesson::L2Triangle => {
 			(200, 200)
 		},
-		Lesson::L1Model | Lesson::L2Model | Lesson::L3Model | Lesson::L4Model => {
+		Lesson::L1Model | Lesson::L2Model | Lesson::L3Model | Lesson::L4Model | Lesson::L5Model => {
 			(800, 800)
 		},
 	};
@@ -54,14 +56,25 @@ fn main() {
 			model.fill(&mut image, 0, 0, width, height);
 		},
 		Lesson::L3Model => {
-			let transform = &vec::position(0f64, 0f64, 0f64, width as f64, height as f64, 255f64);
+			let transform = &vec::viewport(0f64, 0f64, 0f64, width as f64, height as f64, 255f64);
 			model.fill_float(&mut image, &texture, transform);
 		},
 		Lesson::L4Model => {
-			let position = &vec::position(width as f64 / 8f64, height as f64 / 8f64, 0f64,
+			let viewport = &vec::viewport(width as f64 / 8f64, height as f64 / 8f64, 0f64,
 						      width as f64 * 0.75f64, height as f64 * 0.75f64, 255f64);
-			let camera = &vec::project(3f64);
-			let transform = &position.mul(camera);
+			let projection = &vec::project(3f64);
+			let transform = &viewport.mul(projection);
+			model.fill_float(&mut image, &texture, transform);
+		},
+		Lesson::L5Model => {
+			let viewport = &vec::viewport(width as f64 / 8f64, height as f64 / 8f64, 0f64,
+						      width as f64 * 0.75f64, height as f64 * 0.75f64, 255f64);
+			let eye = &vec::Vec3([ 1f64, 1f64, 3f64 ]);
+			let center = &vec::Vec3([ 0f64, 0f64, 0f64 ]);
+			let up = &vec::Vec3([ 0f64, 1f64, 0f64 ]);
+			let projection = &vec::project(eye.sub(center).norm());
+			let modelview = &vec::lookat(eye, center, up);
+			let transform = &viewport.mul(projection).mul(modelview);
 			model.fill_float(&mut image, &texture, transform);
 		},
 	}
