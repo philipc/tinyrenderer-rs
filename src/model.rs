@@ -55,21 +55,21 @@ impl Model {
 		}
 	}
 
-	pub fn read(&mut self, path: &Path) -> Result<(), ModelError> {
+	pub fn read(path: &Path) -> Result<Model, ModelError> {
 		let file = BufReader::new(try!(File::open(path)));
+		let mut model = Model::new();
 		for line in file.lines() {
 			let line = try!(line);
 			let mut words = line.split_whitespace();
 			match words.next() {
-				Some("v") => self.vert.push(try!(Model::read_vert(&mut words))),
-				Some("vn") => self.normal.push(try!(Model::read_vert(&mut words))),
-				Some("vt") => self.texture.push(try!(Model::read_vert(&mut words))),
-				Some("f") => try!(self.read_face(&mut words)),
-				Some(_) => (),
-				None => (),
+				Some("v") => model.vert.push(try!(Model::read_vert(&mut words))),
+				Some("vn") => model.normal.push(try!(Model::read_vert(&mut words))),
+				Some("vt") => model.texture.push(try!(Model::read_vert(&mut words))),
+				Some("f") => model.face.push(try!(Model::read_face(&mut words, model.vert.len(), model.texture.len()))),
+				_ => (),
 			}
 		};
-		Ok(())
+		Ok(model)
 	}
 
 	fn read_vert<'a, I: Iterator<Item=&'a str>>(words: &mut I) -> Result<vec::Vec3<f64>, ModelError> {
@@ -86,22 +86,20 @@ impl Model {
 		}
 	}
 
-	fn read_face<'a, I: Iterator<Item=&'a str>>(&mut self, words: &mut I) -> Result<(), ModelError> {
-		let mut vert = Vec::new();
-		let mut texture = Vec::new();
+	fn read_face<'a, I: Iterator<Item=&'a str>>(words: &mut I, vert_len: usize, texture_len: usize) -> Result<Face, ModelError> {
+		let mut face = Face {
+			vert: Vec::new(),
+			texture: Vec::new(),
+		};
 		for word in words {
 			let mut indices = word.split('/');
-			vert.push(try!(Model::read_idx(indices.next(), self.vert.len())));
-			texture.push(try!(Model::read_idx(indices.next(), self.texture.len())));
+			face.vert.push(try!(Model::read_idx(indices.next(), vert_len)));
+			face.texture.push(try!(Model::read_idx(indices.next(), texture_len)));
 		}
-		if vert.len() != 3 {
+		if face.vert.len() != 3 {
 			return Err(ModelError::Parse("face must have exactly 3 vertices".into()));
 		}
-		self.face.push(Face {
-			vert: vert,
-			texture: texture,
-		});
-		Ok(())
+		Ok(face)
 	}
 
 	fn read_idx(word_opt: Option<&str>, len: usize) -> Result<usize, ModelError> {

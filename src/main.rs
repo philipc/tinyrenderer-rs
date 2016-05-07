@@ -6,11 +6,9 @@ use std::path::Path;
 
 fn main() {
 	let (width, height) = (800, 800);
-
 	let mut image = tga::TgaImage::new(width as usize, height as usize, tga::TgaFormat::RGB);
 
-	let mut model = model::Model::new();
-	model.read(Path::new("african_head.obj")).unwrap();
+	let model = model::Model::read(Path::new("african_head.obj")).unwrap();
 	let texture = tga::TgaImage::read(Path::new("african_head_diffuse.tga")).unwrap();
 
 	let viewport = &vec::viewport(width as f64 / 8f64, height as f64 / 8f64, 0f64,
