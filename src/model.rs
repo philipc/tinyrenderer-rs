@@ -115,7 +115,8 @@ impl Model {
 		Ok(idx)
 	}
 
-	pub fn line(&self, image: &mut tga::TgaImage, x: i32, y: i32, w: i32, h: i32, color: &tga::TgaColor) {
+	#[allow(dead_code)]
+	pub fn wireframe(&self, image: &mut tga::TgaImage, x: i32, y: i32, w: i32, h: i32, color: &tga::TgaColor) {
 		let width = w as f64;
 		let height = h as f64;
 
@@ -135,38 +136,7 @@ impl Model {
 		}
 	}
 
-	pub fn fill(&self, image: &mut tga::TgaImage, x: i32, y: i32, w: i32, h: i32) {
-		let light_dir = vec::Vec3::new(0f64, 0f64, -1f64);
-		let width = w as f64;
-		let height = h as f64;
-
-		for face in &self.face {
-			let v0 = &self.vert[face.vert[0]];
-			let v1 = &self.vert[face.vert[1]];
-			let v2 = &self.vert[face.vert[2]];
-
-			let intensity = (&v2.sub(v0)).cross(&v1.sub(v0)).normalize().dot(&light_dir);
-			if intensity <= 0f64 {
-				continue;
-			}
-			let intensity = (intensity * 255f64) as u8;
-			let color = tga::TgaColor::new(intensity, intensity, intensity, 255);
-
-			let p0 = vec::Vec2::new(
-				x + ((v0.0[0] + 1f64) * width / 2f64 + 0.5f64) as i32,
-				y + ((v0.0[1] + 1f64) * height / 2f64 + 0.5f64) as i32);
-			let p1 = vec::Vec2::new(
-				x + ((v1.0[0] + 1f64) * width / 2f64 + 0.5f64) as i32,
-				y + ((v1.0[1] + 1f64) * height / 2f64 + 0.5f64) as i32);
-			let p2 = vec::Vec2::new(
-				x + ((v2.0[0] + 1f64) * width / 2f64 + 0.5f64) as i32,
-				y + ((v2.0[1] + 1f64) * height / 2f64 + 0.5f64) as i32);
-
-			image.fill(p0, p1, p2, &color);
-		}
-	}
-
-	pub fn fill_float(&self, image: &mut tga::TgaImage, texture: &tga::TgaImage,
+	pub fn render(&self, image: &mut tga::TgaImage, texture: &tga::TgaImage,
 			  transform: &vec::Transform4<f64>) {
 		let light_dir = vec::Vec3::new(1f64, -1f64, 1f64).normalize();
 		let mut zbuffer = vec![f64::MIN; image.get_width() * image.get_height()];
@@ -186,7 +156,7 @@ impl Model {
 				self.normal[face.vert[2]].dot(&light_dir)
 					]);
 
-			image.fill_float(p0, p1, p2, t0, t1, t2, intensity, texture, &mut zbuffer[..]);
+			image.render(p0, p1, p2, t0, t1, t2, intensity, texture, &mut zbuffer[..]);
 		}
 	}
 }

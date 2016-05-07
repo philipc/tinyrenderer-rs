@@ -4,6 +4,4 @@ version = "0.1.0"
 authors = ["Philip Craig <philipjcraig@gmail.com>"]
 
 [dependencies]
-byteorder = "0.5.1"
-image = "0.7.0"
 vecmath = "0.2.0"

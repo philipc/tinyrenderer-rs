@@ -116,47 +116,6 @@ impl TgaColor {
 	}
 }
 
-/*
-
-struct TGAColor {
-	union {
-		struct {
-			unsigned char b, g, r, a;
-		};
-		unsigned char raw[4];
-		unsigned int val;
-	};
-	int bytespp;
-
-	TGAColor() : val(0), bytespp(1) {
-	}
-
-	TGAColor(unsigned char R, unsigned char G, unsigned char B, unsigned char A) : b(B), g(G), r(R), a(A), bytespp(4) {
-	}
-
-	TGAColor(int v, int bpp) : val(v), bytespp(bpp) {
-	}
-
-	TGAColor(const TGAColor &c) : val(c.val), bytespp(c.bytespp) {
-	}
-
-	TGAColor(const unsigned char *p, int bpp) : val(0), bytespp(bpp) {
-		for (int i=0; i<bpp; i++) {
-			raw[i] = p[i];
-		}
-	}
-
-	TGAColor & operator =(const TGAColor &c) {
-		if (this != &c) {
-			bytespp = c.bytespp;
-			val = c.val;
-		}
-		return *this;
-	}
-};
-*/
-
-
 #[derive(Copy, Clone, PartialEq)]
 pub enum TgaFormat {
 	GRAYSCALE = 1,
@@ -171,44 +130,6 @@ pub struct TgaImage {
 	format: TgaFormat,
 }
 
-/*
-class TGAImage {
-protected:
-	bool   load_rle_data(std::ifstream &in);
-	bool unload_rle_data(std::ofstream &out);
-public:
-
-	TGAImage();
-	TGAImage(int w, int h, int bpp);
-	TGAImage(const TGAImage &img);
-	bool read_tga_file(const char *filename);
-	bool write_tga_file(const char *filename, bool rle=true);
-	bool flip_horizontally();
-	bool flip_vertically();
-	bool scale(int w, int h);
-	TGAColor get(int x, int y);
-	bool set(int x, int y, TGAColor c);
-	~TGAImage();
-	TGAImage & operator =(const TGAImage &img);
-	int get_width();
-	int get_height();
-	int get_bytespp();
-	unsigned char *buffer();
-	void clear();
-};
-
-#endif //__IMAGE_H__
-#include <iostream>
-#include <fstream>
-#include <string.h>
-#include <time.h>
-#include <math.h>
-#include "tgaimage.h"
-
-TGAImage::TGAImage() : data(NULL), width(0), height(0), bytespp(0) {
-}
-*/
-
 impl TgaImage {
 	pub fn new(width: usize, height: usize, format: TgaFormat) -> Self {
 		let nbytes = width * height * format as usize;
@@ -221,46 +142,14 @@ impl TgaImage {
 		}
 	}
 
-	#[allow(dead_code)]
 	pub fn get_width(&self) -> usize {
 		self.width
 	}
 
-	#[allow(dead_code)]
 	pub fn get_height(&self) -> usize {
 		self.height
 	}
-}
 
-/*
-TGAImage::TGAImage(const TGAImage &img) {
-	width = img.width;
-	height = img.height;
-	bytespp = img.bytespp;
-	unsigned long nbytes = width*height*bytespp;
-	data = new unsigned char[nbytes];
-	memcpy(data, img.data, nbytes);
-}
-
-TGAImage::~TGAImage() {
-	if (data) delete [] data;
-}
-
-TGAImage & TGAImage::operator =(const TGAImage &img) {
-	if (this != &img) {
-		if (data) delete [] data;
-		width  = img.width;
-		height = img.height;
-		bytespp = img.bytespp;
-		unsigned long nbytes = width*height*bytespp;
-		data = new unsigned char[nbytes];
-		memcpy(data, img.data, nbytes);
-	}
-	return *this;
-}
-*/
-
-impl TgaImage {
 	pub fn read(path: &Path) -> io::Result<Self> {
 		let mut file = BufReader::new(try!(File::open(path)));
 		let mut header = TgaHeader::default();
@@ -291,67 +180,7 @@ impl TgaImage {
 		}
 		Ok(image)
 	}
-}
 
-/*
-bool TGAImage::read_tga_file(const char *filename) {
-	if (data) delete [] data;
-	data = NULL;
-	std::ifstream in;
-	in.open (filename, std::ios::binary);
-	if (!in.is_open()) {
-		std::cerr << "can't open file " << filename << "\n";
-		in.close();
-		return false;
-	}
-	TGAHeader header;
-	in.read((char *)&header, sizeof(header));
-	if (!in.good()) {
-		in.close();
-		std::cerr << "an error occured while reading the header\n";
-		return false;
-	}
-	width   = header.width;
-	height  = header.height;
-	bytespp = header.bitsperpixel>>3;
-	if (width<=0 || height<=0 || (bytespp!=GRAYSCALE && bytespp!=RGB && bytespp!=RGBA)) {
-		in.close();
-		std::cerr << "bad bpp (or width/height) value\n";
-		return false;
-	}
-	unsigned long nbytes = bytespp*width*height;
-	data = new unsigned char[nbytes];
-	if (3==header.datatypecode || 2==header.datatypecode) {
-		in.read((char *)data, nbytes);
-		if (!in.good()) {
-			in.close();
-			std::cerr << "an error occured while reading the data\n";
-			return false;
-		}
-	} else if (10==header.datatypecode||11==header.datatypecode) {
-		if (!load_rle_data(in)) {
-			in.close();
-			std::cerr << "an error occured while reading the data\n";
-			return false;
-		}
-	} else {
-		in.close();
-		std::cerr << "unknown file format " << (int)header.datatypecode << "\n";
-		return false;
-	}
-	if (!(header.imagedescriptor & 0x20)) {
-		flip_vertically();
-	}
-	if (header.imagedescriptor & 0x10) {
-		flip_horizontally();
-	}
-	std::cerr << width << "x" << height << "/" << bytespp*8 << "\n";
-	in.close();
-	return true;
-}
-*/
-
-impl TgaImage {
 	fn read_rle(&mut self, file: &mut Read) -> io::Result<()> {
 		let bytes_per_pixel = self.bytes_per_pixel();
 		let num_pixels = self.width * self.height;
@@ -379,60 +208,7 @@ impl TgaImage {
 		}
 		Ok(())
 	}
-}
 
-/*
-bool TGAImage::load_rle_data(std::ifstream &in) {
-	unsigned long pixelcount = width*height;
-	unsigned long currentpixel = 0;
-	unsigned long currentbyte  = 0;
-	TGAColor colorbuffer;
-	do {
-		unsigned char chunkheader = 0;
-		chunkheader = in.get();
-		if (!in.good()) {
-			std::cerr << "an error occured while reading the data\n";
-			return false;
-		}
-		if (chunkheader<128) {
-			chunkheader++;
-			for (int i=0; i<chunkheader; i++) {
-				in.read((char *)colorbuffer.raw, bytespp);
-				if (!in.good()) {
-					std::cerr << "an error occured while reading the header\n";
-					return false;
-				}
-				for (int t=0; t<bytespp; t++)
-					data[currentbyte++] = colorbuffer.raw[t];
-				currentpixel++;
-				if (currentpixel>pixelcount) {
-					std::cerr << "Too many pixels read\n";
-					return false;
-				}
-			}
-		} else {
-			chunkheader -= 127;
-			in.read((char *)colorbuffer.raw, bytespp);
-			if (!in.good()) {
-				std::cerr << "an error occured while reading the header\n";
-				return false;
-			}
-			for (int i=0; i<chunkheader; i++) {
-				for (int t=0; t<bytespp; t++)
-					data[currentbyte++] = colorbuffer.raw[t];
-				currentpixel++;
-				if (currentpixel>pixelcount) {
-					std::cerr << "Too many pixels read\n";
-					return false;
-				}
-			}
-		}
-	} while (currentpixel < pixelcount);
-	return true;
-}
-*/
-
-impl TgaImage {
 	fn bytes_per_pixel(&self) -> usize {
 		self.format as usize
 	}
@@ -529,7 +305,6 @@ impl TgaImage {
 		}
 	}
 
-	#[allow(dead_code)]
 	pub fn flip_horizontally(&mut self) {
 		let width = self.width;
 		for i in 0 .. width/2 {
@@ -542,7 +317,6 @@ impl TgaImage {
 		}
 	}
 
-	#[allow(dead_code)]
 	pub fn flip_vertically(&mut self) {
 		let bytes_per_line = self.width * self.bytes_per_pixel();
 		let half = self.height / 2;
@@ -558,56 +332,6 @@ impl TgaImage {
 		}
 	}
 }
-
-/*
-
-unsigned char *TGAImage::buffer() {
-	return data;
-}
-
-void TGAImage::clear() {
-	memset((void *)data, 0, width*height*bytespp);
-}
-
-bool TGAImage::scale(int w, int h) {
-	if (w<=0 || h<=0 || !data) return false;
-	unsigned char *tdata = new unsigned char[w*h*bytespp];
-	int nscanline = 0;
-	int oscanline = 0;
-	int erry = 0;
-	unsigned long nlinebytes = w*bytespp;
-	unsigned long olinebytes = width*bytespp;
-	for (int j=0; j<height; j++) {
-		int errx = width-w;
-		int nx   = -bytespp;
-		int ox   = -bytespp;
-		for (int i=0; i<width; i++) {
-			ox += bytespp;
-			errx += w;
-			while (errx>=(int)width) {
-				errx -= width;
-				nx += bytespp;
-				memcpy(tdata+nscanline+nx, data+oscanline+ox, bytespp);
-			}
-		}
-		erry += h;
-		oscanline += olinebytes;
-		while (erry>=(int)height) {
-			if (erry>=(int)height<<1) // it means we jump over a scanline
-				memcpy(tdata+nscanline+nlinebytes, tdata+nscanline, nlinebytes);
-			erry -= height;
-			nscanline += nlinebytes;
-		}
-	}
-	delete [] data;
-	data = tdata;
-	width = w;
-	height = h;
-	return true;
-}
-const TGAColor white = TGAColor(255, 255, 255, 255);
-const TGAColor red   = TGAColor(255, 0,   0,   255);
-*/
 
 #[derive(Clone, Copy, Debug)]
 enum LineStateRound {
@@ -666,6 +390,7 @@ impl LineState {
 }
 
 impl TgaImage {
+	#[allow(dead_code)]
 	pub fn line<'a>(&mut self,
 		    p0: &'a vec::Vec2<i32>,
 		    p1: &'a vec::Vec2<i32>,
@@ -713,7 +438,7 @@ impl TgaImage {
 	}
 
 	#[allow(dead_code)]
-	pub fn fill(&mut self,
+	pub fn triangle(&mut self,
 		    mut p0: vec::Vec2<i32>,
 		    mut p1: vec::Vec2<i32>,
 		    mut p2: vec::Vec2<i32>,
@@ -767,6 +492,7 @@ impl TgaImage {
 	// 0 = l1 (x1 - x0) + l2 (x2 - x0) + (x0 - x)
 	// 0 = l1 (y1 - y0) + l2 (y2 - y0) + (y0 - y)
 	// Solve using cross product.
+	#[allow(dead_code)]
 	fn inside(&self, p: &vec::Vec2<i32>,
 		  p0: &vec::Vec2<i32>,
 		  p1: &vec::Vec2<i32>,
@@ -806,26 +532,7 @@ impl TgaImage {
 		Some(vec::Vec3::new(l0, l1, l2))
 	}
 
-	#[allow(dead_code)]
-	pub fn fill2(&mut self,
-		     p0: &vec::Vec2<i32>,
-		     p1: &vec::Vec2<i32>,
-		     p2: &vec::Vec2<i32>,
-		     color: &TgaColor) {
-		let minx = cmp::max(0, cmp::min(p0.0[0], cmp::min(p1.0[0], p2.0[0])));
-		let miny = cmp::max(0, cmp::min(p0.0[1], cmp::min(p1.0[1], p2.0[1])));
-		let maxx = cmp::min(self.width as i32 - 1, cmp::max(p0.0[0], cmp::max(p1.0[0], p2.0[0])));
-		let maxy = cmp::min(self.height as i32 - 1, cmp::max(p0.0[1], cmp::max(p1.0[1], p2.0[1])));
-		for y in miny .. maxy + 1 {
-			for x in minx .. maxx + 1 {
-				if self.inside(&vec::Vec2::new(x, y), p0, p1, p2) {
-					self.set(x as usize, y as usize, color);
-				}
-			}
-		}
-	}
-
-	pub fn fill_float(&mut self,
+	pub fn render(&mut self,
 		     p0: &vec::Vec3<f64>, p1: &vec::Vec3<f64>, p2: &vec::Vec3<f64>,
 		     t0: &vec::Vec3<f64>, t1: &vec::Vec3<f64>, t2: &vec::Vec3<f64>,
 		     intensity: &vec::Vec3<f64>, texture: &TgaImage, zbuffer: &mut [f64]) {
