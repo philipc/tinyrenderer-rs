@@ -40,6 +40,7 @@ struct Face {
 
 pub struct Model {
 	vert: Vec<vec::Vec3<f64>>,
+	normal: Vec<vec::Vec3<f64>>,
 	texture: Vec<vec::Vec3<f64>>,
 	face: Vec<Face>,
 }
@@ -48,6 +49,7 @@ impl Model {
 	pub fn new() -> Self {
 		Model {
 			vert: Vec::new(),
+			normal: Vec::new(),
 			texture: Vec::new(),
 			face: Vec::new(),
 		}
@@ -60,6 +62,7 @@ impl Model {
 			let mut words = line.split_whitespace();
 			match words.next() {
 				Some("v") => self.vert.push(try!(Model::read_vert(&mut words))),
+				Some("vn") => self.normal.push(try!(Model::read_vert(&mut words))),
 				Some("vt") => self.texture.push(try!(Model::read_vert(&mut words))),
 				Some("f") => try!(self.read_face(&mut words)),
 				Some(_) => (),
@@ -165,26 +168,23 @@ impl Model {
 
 	pub fn fill_float(&self, image: &mut tga::TgaImage, texture: &tga::TgaImage,
 			  transform: &vec::Transform4<f64>) {
-		let light_dir = vec::Vec3::new(0f64, 0f64, -1f64);
+		let light_dir = vec::Vec3::new(1f64, -1f64, 1f64).normalize();
 		let mut zbuffer = vec![f64::MIN; image.get_width() * image.get_height()];
 
 		for face in &self.face {
-			let v0 = &self.vert[face.vert[0]];
-			let v1 = &self.vert[face.vert[1]];
-			let v2 = &self.vert[face.vert[2]];
+			let p0 = &self.vert[face.vert[0]].transform(transform);
+			let p1 = &self.vert[face.vert[1]].transform(transform);
+			let p2 = &self.vert[face.vert[2]].transform(transform);
 
 			let t0 = &self.texture[face.texture[0]];
 			let t1 = &self.texture[face.texture[1]];
 			let t2 = &self.texture[face.texture[2]];
 
-			let intensity = (&v2.sub(v0)).cross(&v1.sub(v0)).normalize().dot(&light_dir);
-			if intensity <= 0f64 {
-				continue;
-			}
-
-			let p0 = &v0.transform(transform);
-			let p1 = &v1.transform(transform);
-			let p2 = &v2.transform(transform);
+			let intensity = &vec::Vec3([
+				self.normal[face.vert[0]].dot(&light_dir),
+				self.normal[face.vert[1]].dot(&light_dir),
+				self.normal[face.vert[2]].dot(&light_dir)
+					]);
 
 			image.fill_float(p0, p1, p2, t0, t1, t2, intensity, texture, &mut zbuffer[..]);
 		}

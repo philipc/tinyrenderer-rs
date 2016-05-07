@@ -828,7 +828,7 @@ impl TgaImage {
 	pub fn fill_float(&mut self,
 		     p0: &vec::Vec3<f64>, p1: &vec::Vec3<f64>, p2: &vec::Vec3<f64>,
 		     t0: &vec::Vec3<f64>, t1: &vec::Vec3<f64>, t2: &vec::Vec3<f64>,
-		     intensity: f64, texture: &TgaImage, zbuffer: &mut [f64]) {
+		     intensity: &vec::Vec3<f64>, texture: &TgaImage, zbuffer: &mut [f64]) {
 		let minx = cmp::max(0, p0.0[0].min(p1.0[0].min(p2.0[0])).ceil() as i32);
 		let miny = cmp::max(0, p0.0[1].min(p1.0[1].min(p2.0[1])).ceil() as i32);
 		let maxx = cmp::min(self.width as i32 - 1, p0.0[0].max(p1.0[0].max(p2.0[0])).floor() as i32);
@@ -843,8 +843,11 @@ impl TgaImage {
 							zbuffer[x as usize + y as usize * self.width] = z;
 							let diffuse_x = ((t0.0[0] * bc.0[0] + t1.0[0] * bc.0[1] + t2.0[0] * bc.0[2]) * texture.get_width() as f64).floor() as usize;
 							let diffuse_y = ((t0.0[1] * bc.0[0] + t1.0[1] * bc.0[1] + t2.0[1] * bc.0[2]) * texture.get_height() as f64).floor() as usize;
-							let color = texture.get(diffuse_x, diffuse_y).intensity(intensity);
-							self.set(x as usize, y as usize, &color);
+							let intensity = intensity.dot(&bc);
+							if intensity > 0f64 {
+								let color = texture.get(diffuse_x, diffuse_y).intensity(intensity);
+								self.set(x as usize, y as usize, &color);
+							}
 						}
 					}
 				}
