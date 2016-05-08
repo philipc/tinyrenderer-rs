@@ -58,21 +58,21 @@ pub enum Format {
 }
 
 impl Format {
-        pub fn bytes_per_pixel(&self) -> usize {
-                match *self {
-                        Format::Gray => 1,
-                        Format::Rgb => 3,
-                        Format::Rgba => 4,
-                }
-        }
+	pub fn bytes_per_pixel(&self) -> usize {
+		match *self {
+			Format::Gray => 1,
+			Format::Rgb => 3,
+			Format::Rgba => 4,
+		}
+	}
 
-        pub fn alpha_bytes_per_pixel(&self) -> usize {
-                match *self {
-                        Format::Gray => 0,
-                        Format::Rgb => 0,
-                        Format::Rgba => 1,
-                }
-        }
+	pub fn alpha_bytes_per_pixel(&self) -> usize {
+		match *self {
+			Format::Gray => 0,
+			Format::Rgb => 0,
+			Format::Rgba => 1,
+		}
+	}
 }
 
 pub struct Image {
@@ -101,11 +101,11 @@ impl Image {
 			height: height,
 			format: format,
 		}
-        }
+	}
 
 	pub fn get_data(&self) -> &Vec<u8> {
-                &self.data
-        }
+		&self.data
+	}
 
 	pub fn get_width(&self) -> usize {
 		self.width
@@ -115,9 +115,9 @@ impl Image {
 		self.height
 	}
 
-        pub fn get_format(&self) -> Format {
-                self.format
-        }
+	pub fn get_format(&self) -> Format {
+		self.format
+	}
 
 	pub fn get(&self, x: usize, y: usize) -> Color {
 		if x < self.width && y < self.height {

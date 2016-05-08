@@ -9,9 +9,9 @@ impl<T> Vec2<T> where T: Copy {
 		Vec2([x, y])
 	}
 
-        pub fn as_tuple(&self) -> (T, T) {
-                (self.0[0], self.0[1])
-        }
+	pub fn as_tuple(&self) -> (T, T) {
+		(self.0[0], self.0[1])
+	}
 }
 
 pub struct Vec3<T> (pub vecmath::Vector3<T>);
@@ -27,9 +27,9 @@ impl<T> Vec3<T> where T: Copy {
 		Vec3([x, y, z])
 	}
 
-        pub fn as_tuple(&self) -> (T, T, T) {
-                (self.0[0], self.0[1], self.0[2])
-        }
+	pub fn as_tuple(&self) -> (T, T, T) {
+		(self.0[0], self.0[1], self.0[2])
+	}
 }
 
 impl<T> Vec3<T> where T: Copy + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<T, Output = T> + ops::Div<T, Output = T> {
