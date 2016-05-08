@@ -52,25 +52,25 @@ impl Color {
 
 #[derive(Copy, Clone, PartialEq)]
 pub enum Format {
-	GRAYSCALE = 1,
-	RGB = 3,
-	RGBA = 4,
+	Gray,
+	Rgb,
+	Rgba,
 }
 
 impl Format {
         pub fn bytes_per_pixel(&self) -> usize {
                 match *self {
-                        Format::GRAYSCALE => 1,
-                        Format::RGB => 3,
-                        Format::RGBA => 4,
+                        Format::Gray => 1,
+                        Format::Rgb => 3,
+                        Format::Rgba => 4,
                 }
         }
 
         pub fn alpha_bytes_per_pixel(&self) -> usize {
                 match *self {
-                        Format::GRAYSCALE => 0,
-                        Format::RGB => 0,
-                        Format::RGBA => 1,
+                        Format::Gray => 0,
+                        Format::Rgb => 0,
+                        Format::Rgba => 1,
                 }
         }
 }
@@ -84,7 +84,7 @@ pub struct Image {
 
 impl Image {
 	pub fn new(width: usize, height: usize, format: Format) -> Self {
-		let nbytes = width * height * format as usize;
+		let nbytes = width * height * format.bytes_per_pixel();
 		let data = vec![0; nbytes];
 		Image {
 			data: data,

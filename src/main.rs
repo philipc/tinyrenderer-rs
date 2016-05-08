@@ -7,7 +7,7 @@ use std::path;
 
 fn main() {
 	let (width, height) = (800, 800);
-	let mut image = image::Image::new(width, height, image::Format::RGB);
+	let mut image = image::Image::new(width, height, image::Format::Rgb);
 
 	let model = model::Model::read(path::Path::new("african_head.obj")).unwrap();
 	let texture = tga::read(path::Path::new("african_head_diffuse.tga")).unwrap();

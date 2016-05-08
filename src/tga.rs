@@ -69,12 +69,12 @@ pub fn read(path: &path::Path) -> io::Result<image::Image> {
 	let width = u16::from(header.width) as usize;
 	let height = u16::from(header.height) as usize;
 	let (format, rle) = match (header.image_type, header.bits_per_pixel) {
-		(2, 24) => (image::Format::RGB, false),
-		(2, 32) => (image::Format::RGBA, false),
-		(3, 8) => (image::Format::GRAYSCALE, false),
-		(10, 24) => (image::Format::RGB, true),
-		(10, 32) => (image::Format::RGBA, true),
-		(11, 8) => (image::Format::GRAYSCALE, true),
+		(2, 24) => (image::Format::Rgb, false),
+		(2, 32) => (image::Format::Rgba, false),
+		(3, 8) => (image::Format::Gray, false),
+		(10, 24) => (image::Format::Rgb, true),
+		(10, 32) => (image::Format::Rgba, true),
+		(11, 8) => (image::Format::Gray, true),
 		_ => return Err(io::Error::new(io::ErrorKind::Other, "invalid image_type")),
 	};
 
@@ -131,12 +131,12 @@ pub fn write(image: &image::Image, path: &path::Path, rle: bool) -> io::Result<(
 	let width = image.get_width();
 	let height = image.get_width();
 	let image_type = match (format, rle) {
-		(image::Format::RGB, false) => 2,
-		(image::Format::RGBA, false) => 2,
-		(image::Format::GRAYSCALE, false) => 3,
-		(image::Format::RGB, true) => 10,
-		(image::Format::RGBA, true) => 10,
-		(image::Format::GRAYSCALE, true) => 11,
+		(image::Format::Rgb, false) => 2,
+		(image::Format::Rgba, false) => 2,
+		(image::Format::Gray, false) => 3,
+		(image::Format::Rgb, true) => 10,
+		(image::Format::Rgba, true) => 10,
+		(image::Format::Gray, true) => 11,
 	};
 
 	let header = TgaHeader {
