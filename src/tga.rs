@@ -1,14 +1,8 @@
-use vec;
+use image;
 
-use std::cmp;
-use std::path::Path;
-use std::fs::File;
-use std::io;
-use std::io::BufReader;
-use std::io::BufWriter;
+use std::{ fs, io, mem, path, slice };
 use std::io::Read;
 use std::io::Write;
-use std;
 
 #[derive(Default)]
 struct Le16 {
@@ -17,14 +11,14 @@ struct Le16 {
 
 impl From<Le16> for u16 {
 	fn from(le16: Le16) -> Self {
-		u16::from_le(unsafe { std::mem::transmute(le16.buf) })
+		u16::from_le(unsafe { mem::transmute(le16.buf) })
 	}
 }
 
 impl From<u16> for Le16 {
 	fn from(n: u16) -> Self {
 		Le16 {
-			buf: unsafe { std::mem::transmute(n.to_le()) }
+			buf: unsafe { mem::transmute(n.to_le()) }
 		}
 	}
 }
@@ -53,512 +47,154 @@ struct TgaHeader {
 impl TgaHeader {
 	fn as_u8_slice(&self) -> &[u8] {
 		unsafe {
-			std::slice::from_raw_parts(self as *const Self as *const u8, 
-						   std::mem::size_of::<Self>())
+			slice::from_raw_parts(self as *const Self as *const u8, 
+					      mem::size_of::<Self>())
 		}
 	}
 
 	fn as_u8_slice_mut(&mut self) -> &mut [u8] {
 		unsafe {
-			std::slice::from_raw_parts_mut(self as *mut Self as *mut u8, 
-						       std::mem::size_of::<Self>())
+			slice::from_raw_parts_mut(self as *mut Self as *mut u8, 
+						  mem::size_of::<Self>())
 		}
 	}
 }
 
 const TGA_FOOTER: &'static [u8] = b"TRUEVISION-XFILE.\0";
 
-#[derive(Default)]
-#[repr(C, packed)]
-pub struct TgaColor {
-	b: u8,
-	g: u8,
-	r: u8,
-	a: u8,
+pub fn read(path: &path::Path) -> io::Result<image::Image> {
+	let mut file = io::BufReader::new(try!(fs::File::open(path)));
+	let mut header = TgaHeader::default();
+	try!(file.read_exact(header.as_u8_slice_mut()));
+	let width = u16::from(header.width) as usize;
+	let height = u16::from(header.height) as usize;
+	let (format, rle) = match (header.image_type, header.bits_per_pixel) {
+		(2, 24) => (image::Format::RGB, false),
+		(2, 32) => (image::Format::RGBA, false),
+		(3, 8) => (image::Format::GRAYSCALE, false),
+		(10, 24) => (image::Format::RGB, true),
+		(10, 32) => (image::Format::RGBA, true),
+		(11, 8) => (image::Format::GRAYSCALE, true),
+		_ => return Err(io::Error::new(io::ErrorKind::Other, "invalid image_type")),
+	};
+
+	let nbytes = width * height * format.bytes_per_pixel();
+	// FIXME: avoid zero init of data
+	let mut data = vec![0; nbytes];
+	if rle {
+		try!(read_rle(&mut file, &mut data, format));
+	} else {
+		try!(file.read_exact(&mut data));
+	}
+
+	let mut image = image::Image::from_data(width, height, format, data);
+	if header.image_descriptor & 0x10 != 0 {
+		image.flip_horizontally();
+	}
+	if header.image_descriptor & 0x20 != 0{
+		image.flip_vertically();
+	}
+	Ok(image)
 }
 
-impl TgaColor {
-	pub fn new(r: u8, g: u8, b: u8, a: u8) -> TgaColor {
-		TgaColor {
-			b: b,
-			g: g,
-			r: r,
-			a: a,
+fn read_rle(file: &mut io::Read, data: &mut Vec<u8>, format: image::Format) -> io::Result<()> {
+	let bytes_per_pixel = format.bytes_per_pixel();
+	let mut color = vec![0; bytes_per_pixel];
+	let num_pixels = data.len() / bytes_per_pixel;
+	let mut start_pixel = 0;
+	while start_pixel < num_pixels {
+		let mut code = [0; 1];
+		try!(file.read_exact(&mut code));
+		let run_length = (code[0] & !0x80) as usize + 1;
+		let next_pixel = start_pixel + run_length;
+		if next_pixel > num_pixels {
+			return Err(io::Error::new(io::ErrorKind::Other, "invalid rle length"));
 		}
-	}
-
-	fn from_u8(buf: &[u8]) -> Self {
-		let a = if buf.len() >= 4 { buf[3] } else { 0 };
-		TgaColor {
-			b: buf[0],
-			g: buf[1],
-			r: buf[2],
-			a: a,
-		}
-	}
-
-	fn to_u8(&self, buf: &mut [u8]) {
-		buf[0] = self.b;
-		buf[1] = self.g;
-		buf[2] = self.r;
-		if buf.len() >= 4 {
-			buf[3] = self.a;
-		}
-	}
-
-	fn intensity(&self, intensity: f64) -> Self {
-		TgaColor {
-			r: (self.r as f64 * intensity).round() as u8,
-			g: (self.g as f64 * intensity).round() as u8,
-			b: (self.b as f64 * intensity).round() as u8,
-			a: 255,
-		}
-	}
-}
-
-#[derive(Copy, Clone, PartialEq)]
-pub enum TgaFormat {
-	GRAYSCALE = 1,
-	RGB = 3,
-	RGBA = 4,
-}
-
-pub struct TgaImage {
-	data: Vec<u8>,
-	width: usize,
-	height: usize,
-	format: TgaFormat,
-}
-
-impl TgaImage {
-	pub fn new(width: usize, height: usize, format: TgaFormat) -> Self {
-		let nbytes = width * height * format as usize;
-		let data = vec![0; nbytes];
-		TgaImage {
-			data: data,
-			width: width,
-			height: height,
-			format: format,
-		}
-	}
-
-	pub fn get_width(&self) -> usize {
-		self.width
-	}
-
-	pub fn get_height(&self) -> usize {
-		self.height
-	}
-
-	pub fn read(path: &Path) -> io::Result<Self> {
-		let mut file = BufReader::new(try!(File::open(path)));
-		let mut header = TgaHeader::default();
-		try!(file.read_exact(header.as_u8_slice_mut()));
-		let width: u16 = header.width.into();
-		let height: u16 = header.height.into();
-		let (format, rle) = match (header.image_type, header.bits_per_pixel) {
-			(2, 24) => (TgaFormat::RGB, false),
-			(2, 32) => (TgaFormat::RGBA, false),
-			(3, 8) => (TgaFormat::GRAYSCALE, false),
-			(10, 24) => (TgaFormat::RGB, true),
-			(10, 32) => (TgaFormat::RGBA, true),
-			(11, 8) => (TgaFormat::GRAYSCALE, true),
-			_ => return Err(io::Error::new(io::ErrorKind::Other, "invalid image_type")),
-		};
-		// FIXME: avoid zero init of data
-		let mut image = TgaImage::new(width as usize, height as usize, format);
-		if rle {
-			try!(image.read_rle(&mut file));
-		} else {
-			try!(file.read_exact(&mut image.data));
-		}
-		if header.image_descriptor & 0x10 != 0 {
-			image.flip_horizontally();
-		}
-		if header.image_descriptor & 0x20 != 0{
-			image.flip_vertically();
-		}
-		Ok(image)
-	}
-
-	fn read_rle(&mut self, file: &mut Read) -> io::Result<()> {
-		let bytes_per_pixel = self.bytes_per_pixel();
-		let num_pixels = self.width * self.height;
-		let mut start_pixel = 0;
-		while start_pixel < num_pixels {
-			let mut code = [0; 1];
-			try!(file.read_exact(&mut code));
-			let run_length = (code[0] & !0x80) as usize + 1;
-			let next_pixel = start_pixel + run_length;
-			if next_pixel > num_pixels {
-				return Err(io::Error::new(io::ErrorKind::Other, "invalid rle length"));
-			}
-			if code[0] & 0x80 == 0 {
-				try!(file.read_exact(&mut self.data[start_pixel * bytes_per_pixel..][..run_length * bytes_per_pixel]));
-				start_pixel = next_pixel;
-			} else {
-				// FIXME: read directly into self.data
-				let mut color = vec![0; bytes_per_pixel];
-				try!(file.read_exact(&mut color));
-				while start_pixel < next_pixel {
-					self.data[start_pixel * bytes_per_pixel..][..bytes_per_pixel].clone_from_slice(&color);
-					start_pixel += 1;
-				}
-			}
-		}
-		Ok(())
-	}
-
-	fn bytes_per_pixel(&self) -> usize {
-		self.format as usize
-	}
-
-	fn bits_per_pixel(&self) -> usize {
-		self.bytes_per_pixel() * 8
-	}
-
-	fn alpha_bits_per_pixel(&self) -> usize {
-		if self.format == TgaFormat::RGBA {
-			8
-		} else {
-			0
-		}
-	}
-
-	pub fn write(&self, path: &Path, rle: bool) -> io::Result<()> {
-		let mut file = BufWriter::new(try!(File::create(path)));
-
-		let header = TgaHeader {
-			image_type: if self.format == TgaFormat::GRAYSCALE { if rle { 11 } else { 3 } } else if rle { 10 } else { 2 },
-			width: From::from(self.width as u16),
-			height: From::from(self.height as u16),
-			bits_per_pixel: self.bits_per_pixel() as u8,
-			image_descriptor: self.alpha_bits_per_pixel() as u8,
-			.. Default::default()
-		};
-		try!(file.write_all(header.as_u8_slice()));
-
-		if rle {
-			try!(self.write_rle(&mut file));
-		} else {
-			try!(file.write_all(&self.data[..]));
-		}
-
-		try!(file.write_all(&[0; 4])); // developer area offset
-		try!(file.write_all(&[0; 4])); // extension area offset
-		try!(file.write_all(TGA_FOOTER));
-		Ok(())
-	}
-
-	fn write_rle(&self, file: &mut Write) -> io::Result<()> {
-		let bytes_per_pixel = self.bytes_per_pixel();
-		let num_pixels = self.width * self.height;
-		let mut start_pixel = 0;
-		while start_pixel < num_pixels {
-			let mut cur_color = &self.data[start_pixel * bytes_per_pixel..][..bytes_per_pixel];
-			let mut raw = true;
-			let mut run_length = 1;
-			let mut next_pixel = start_pixel + 1;
-			while next_pixel < num_pixels && run_length < 128 {
-				let next_color = &self.data[next_pixel * bytes_per_pixel..][..bytes_per_pixel];
-				let next_eq = cur_color == next_color;
-				if run_length == 1 {
-					raw = !next_eq;
-				} else if raw && next_eq {
-					// FIXME: only break if the next run_length > 2
-					run_length -= 1;
-					next_pixel -= 1;
-					break;
-				} else if !raw && !next_eq {
-					break;
-				}
-				run_length += 1;
-				next_pixel += 1;
-				cur_color = next_color;
-			}
-			if raw {
-				try!(file.write_all(&[(run_length-1) as u8]));
-				try!(file.write_all(&self.data[start_pixel * bytes_per_pixel..][..run_length * bytes_per_pixel]));
-			} else {
-				try!(file.write_all(&[(run_length+127) as u8]));
-				try!(file.write_all(cur_color));
-			}
+		if code[0] & 0x80 == 0 {
+			try!(file.read_exact(&mut data[start_pixel * bytes_per_pixel..][..run_length * bytes_per_pixel]));
 			start_pixel = next_pixel;
-		}
-		Ok(())
-	}
-
-	pub fn get(&self, x: usize, y: usize) -> TgaColor {
-		if x < self.width && y < self.height {
-			let offset = (x + y * self.width) * self.bytes_per_pixel();
-			TgaColor::from_u8(&self.data[offset..][..self.bytes_per_pixel()])
 		} else {
-			TgaColor::new(0, 0, 0, 255)
-		}
-	}
-
-	pub fn set(&mut self, x: usize, y: usize, color: &TgaColor) {
-		let bytes_per_pixel = self.bytes_per_pixel();
-		if x < self.width && y < self.height {
-			let offset = (x + y * self.width) * bytes_per_pixel;
-			color.to_u8(&mut self.data[offset..][..bytes_per_pixel]);
-		}
-	}
-
-	pub fn flip_horizontally(&mut self) {
-		let width = self.width;
-		for i in 0 .. width/2 {
-			for j in 0 .. self.height {
-				let c1 = self.get(i, j);
-				let c2 = self.get(width - 1 - i, j);
-				self.set(i, j, &c2);
-				self.set(width - 1 - i, j, &c1);
+			// FIXME: read directly into data
+			try!(file.read_exact(&mut color));
+			while start_pixel < next_pixel {
+				data[start_pixel * bytes_per_pixel..][..bytes_per_pixel].clone_from_slice(&color);
+				start_pixel += 1;
 			}
 		}
 	}
-
-	pub fn flip_vertically(&mut self) {
-		let bytes_per_line = self.width * self.bytes_per_pixel();
-		let half = self.height / 2;
-		let (top, bot) = self.data.split_at_mut(half * bytes_per_line);
-		let mut line = Vec::with_capacity(bytes_per_line);
-		for j in 0 .. half {
-			let line1 = &mut top[j * bytes_per_line ..][.. bytes_per_line];
-			let line2 = &mut bot[(self.height - half - 1 - j) * bytes_per_line ..][.. bytes_per_line];
-			line.extend_from_slice(line1);
-			line1.clone_from_slice(line2);
-			line2.clone_from_slice(&line[..]);
-			line.truncate(0);
-		}
-	}
+	Ok(())
 }
 
-#[derive(Clone, Copy, Debug)]
-enum LineStateRound {
-	Left,
-	Nearest,
-	Right,
+pub fn write(image: &image::Image, path: &path::Path, rle: bool) -> io::Result<()> {
+	let mut file = io::BufWriter::new(try!(fs::File::create(path)));
+	let format = image.get_format();
+	let width = image.get_width();
+	let height = image.get_width();
+	let image_type = match (format, rle) {
+		(image::Format::RGB, false) => 2,
+		(image::Format::RGBA, false) => 2,
+		(image::Format::GRAYSCALE, false) => 3,
+		(image::Format::RGB, true) => 10,
+		(image::Format::RGBA, true) => 10,
+		(image::Format::GRAYSCALE, true) => 11,
+	};
+
+	let header = TgaHeader {
+		image_type: image_type,
+		width: From::from(width as u16),
+		height: From::from(height as u16),
+		bits_per_pixel: format.bytes_per_pixel() as u8 * 8,
+		image_descriptor: format.alpha_bytes_per_pixel() as u8 * 8,
+		.. Default::default()
+	};
+	try!(file.write_all(header.as_u8_slice()));
+
+	if rle {
+		try!(write_rle(&mut file, image.get_data(), format));
+	} else {
+		try!(file.write_all(&image.get_data()));
+	}
+
+	try!(file.write_all(&[0; 4])); // developer area offset
+	try!(file.write_all(&[0; 4])); // extension area offset
+	try!(file.write_all(TGA_FOOTER));
+	Ok(())
 }
 
-struct LineState {
-	pub a: i32,
-	a_final: i32,
-	pub b: i32,
-	b_frac: i32, // fraction = b_frac/da
-	da: i32,
-	db: i32,
-	dir: i32,
-}
-
-impl LineState {
-	pub fn new(a0: i32, b0: i32, a1: i32, b1: i32, round: LineStateRound) -> Self {
-		// double these so that we can implement rounding with integers
-		let da = (a1 - a0).abs() * 2;
-		let db = (b1 - b0).abs() * 2;
-		let up = b1 > b0;
-		let b_frac = match round {
-			LineStateRound::Left => if up { da - 1 } else { 1 },
-			LineStateRound::Nearest => da / 2,
-			LineStateRound::Right => if up { 1 } else { da - 1 },
-		};
-		let dir = if up { 1 } else { -1 };
-		LineState {
-			a: a0,
-			a_final: a1,
-			b: b0,
-			b_frac: b_frac,
-			da: da,
-			db: db,
-			dir: dir,
-		}
-	}
-
-	// step a by '1'
-	// step b by 'db/da'
-	pub fn step(&mut self) -> bool {
-		if self.a == self.a_final {
-			return false;
-		}
-		self.a += 1;
-		self.b_frac += self.db;
-		while self.b_frac >= self.da {
-			self.b_frac -= self.da;
-			self.b += self.dir;
-		}
-		true
-	}
-}
-
-impl TgaImage {
-	#[allow(dead_code)]
-	pub fn line<'a>(&mut self,
-		    p0: &'a vec::Vec2<i32>,
-		    p1: &'a vec::Vec2<i32>,
-		    color: &TgaColor) {
-		let (mut x0, mut y0) = p0.as_tuple();
-		let (mut x1, mut y1) = p1.as_tuple();
-		let dx = (x1 - x0).abs();
-		let dy = (y1 - y0).abs();
-		let steep = dy > dx;
-		if steep {
-			std::mem::swap(&mut x0, &mut y0);
-			std::mem::swap(&mut x1, &mut y1);
-		};
-		if x0 > x1 {
-			std::mem::swap(&mut x0, &mut x1);
-			std::mem::swap(&mut y0, &mut y1);
-		}
-		let mut s = LineState::new(x0, y0, x1, y1, LineStateRound::Nearest);
-		loop {
-			if steep {
-				self.set(s.b as usize, s.a as usize, color);
-			} else {
-				self.set(s.a as usize, s.b as usize, color);
-			}
-			if !s.step() {
+fn write_rle(file: &mut io::Write, data: &Vec<u8>, format: image::Format) -> io::Result<()> {
+	let bytes_per_pixel = format.bytes_per_pixel();
+	let num_pixels = data.len() / bytes_per_pixel;
+	let mut start_pixel = 0;
+	while start_pixel < num_pixels {
+		let mut cur_color = &data[start_pixel * bytes_per_pixel..][..bytes_per_pixel];
+		let mut raw = true;
+		let mut run_length = 1;
+		let mut next_pixel = start_pixel + 1;
+		while next_pixel < num_pixels && run_length < 128 {
+			let next_color = &data[next_pixel * bytes_per_pixel..][..bytes_per_pixel];
+			let next_eq = cur_color == next_color;
+			if run_length == 1 {
+				raw = !next_eq;
+			} else if raw && next_eq {
+				// FIXME: only break if the next run_length > 2
+				run_length -= 1;
+				next_pixel -= 1;
+				break;
+			} else if !raw && !next_eq {
 				break;
 			}
+			run_length += 1;
+			next_pixel += 1;
+			cur_color = next_color;
 		}
-	}
-
-	pub fn horizontal_line(&mut self,
-		    mut x0: i32, mut x1: i32, y: i32,
-		    color: &TgaColor) {
-		if x0 > x1 {
-			std::mem::swap(&mut x0, &mut x1);
-		}
-		let mut x = x0;
-		loop {
-			self.set(x as usize, y as usize, color);
-			if x == x1 {
-				break;
-			}
-			x += 1;
-		}
-	}
-
-	#[allow(dead_code)]
-	pub fn triangle(&mut self,
-		    mut p0: vec::Vec2<i32>,
-		    mut p1: vec::Vec2<i32>,
-		    mut p2: vec::Vec2<i32>,
-		    color: &TgaColor) {
-		if p0.0[1] == p1.0[1] && p0.0[1] == p2.0[1] {
-			return;
-		}
-		if p0.0[1] > p1.0[1] {
-			std::mem::swap(&mut p0, &mut p1);
-		}
-		if p0.0[1] > p2.0[1] {
-			std::mem::swap(&mut p0, &mut p2);
-		}
-		if p1.0[1] > p2.0[1] {
-			std::mem::swap(&mut p1, &mut p2);
-		}
-		let (mut roundl, mut roundr) = (LineStateRound::Left, LineStateRound::Right);
-		let order = (p2.0[0] - p0.0[0]) * (p1.0[1] - p0.0[1]) - (p1.0[0] - p0.0[0]) * (p2.0[1] - p0.0[1]);
-		if order < 0 {
-			std::mem::swap(&mut roundl, &mut roundr);
-		}
-		let mut l = LineState::new(p0.0[1], p0.0[0], p1.0[1], p1.0[0], roundl);
-		let mut r = LineState::new(p0.0[1], p0.0[0], p2.0[1], p2.0[0], roundr);
-		loop {
-			if (r.b - l.b) * order >= 0 {
-				self.horizontal_line(l.b, r.b, r.a, color);
-			}
-			if !l.step() {
-				break;
-			}
-			r.step();
-		}
-		l = LineState::new(p1.0[1], p1.0[0], p2.0[1], p2.0[0], roundl);
-		loop {
-			if !l.step() {
-				break;
-			}
-			r.step();
-			if (r.b - l.b) * order >= 0 {
-				self.horizontal_line(l.b, r.b, r.a, color);
-			}
-		}
-	}
-
-	// Return true if barycentric coordinates are >= 0
-	// Define l0, l1, l2:
-	// x = l0 x0 + l1 x1 + l2 x2
-	// y = l0 y0 + l1 y1 + l2 y2
-	// l0 + l1 + l2 = 1
-	// Therefore:
-	// 0 = l1 (x1 - x0) + l2 (x2 - x0) + (x0 - x)
-	// 0 = l1 (y1 - y0) + l2 (y2 - y0) + (y0 - y)
-	// Solve using cross product.
-	#[allow(dead_code)]
-	fn inside(&self, p: &vec::Vec2<i32>,
-		  p0: &vec::Vec2<i32>,
-		  p1: &vec::Vec2<i32>,
-		  p2: &vec::Vec2<i32>)
-		  -> bool {
-		let v1 = vec::Vec3::new(p1.0[0] - p0.0[0], p2.0[0] - p0.0[0], p0.0[0] - p.0[0]);
-		let v2 = vec::Vec3::new(p1.0[1] - p0.0[1], p2.0[1] - p0.0[1], p0.0[1] - p.0[1]);
-		let (l1, l2, scale) = v1.cross(&v2).as_tuple();
-		if scale == 0 {
-			return false;
-		}
-		let l0 = scale - l1 - l2;
-		if scale > 0 {
-			l0 >= 0 && l1 >= 0 && l2 >= 0
+		if raw {
+			try!(file.write_all(&[(run_length-1) as u8]));
+			try!(file.write_all(&data[start_pixel * bytes_per_pixel..][..run_length * bytes_per_pixel]));
 		} else {
-			l0 <= 0 && l1 <= 0 && l2 <= 0
+			try!(file.write_all(&[(run_length+127) as u8]));
+			try!(file.write_all(cur_color));
 		}
+		start_pixel = next_pixel;
 	}
-
-	fn barycentric(&self, p: &vec::Vec2<f64>,
-		  p0: &vec::Vec3<f64>,
-		  p1: &vec::Vec3<f64>,
-		  p2: &vec::Vec3<f64>)
-		  -> Option<vec::Vec3<f64>> {
-		let v1 = vec::Vec3::new(p1.0[0] - p0.0[0], p2.0[0] - p0.0[0], p0.0[0] - p.0[0]);
-		let v2 = vec::Vec3::new(p1.0[1] - p0.0[1], p2.0[1] - p0.0[1], p0.0[1] - p.0[1]);
-		let (l1, l2, scale) = v1.cross(&v2).as_tuple();
-		if scale == 0f64 {
-			return None;
-		}
-		let l1 = l1 / scale;
-		let l2 = l2 / scale;
-		let l0 = 1f64 - l1 - l2;
-		if l0 < 0f64 || l1 < 0f64 || l2 < 0f64 {
-			return None;
-		}
-		Some(vec::Vec3::new(l0, l1, l2))
-	}
-
-	pub fn render(&mut self,
-		     p0: &vec::Vec3<f64>, p1: &vec::Vec3<f64>, p2: &vec::Vec3<f64>,
-		     t0: &vec::Vec3<f64>, t1: &vec::Vec3<f64>, t2: &vec::Vec3<f64>,
-		     intensity: &vec::Vec3<f64>, texture: &TgaImage, zbuffer: &mut [f64]) {
-		let minx = cmp::max(0, p0.0[0].min(p1.0[0].min(p2.0[0])).ceil() as i32);
-		let miny = cmp::max(0, p0.0[1].min(p1.0[1].min(p2.0[1])).ceil() as i32);
-		let maxx = cmp::min(self.width as i32 - 1, p0.0[0].max(p1.0[0].max(p2.0[0])).floor() as i32);
-		let maxy = cmp::min(self.height as i32 - 1, p0.0[1].max(p1.0[1].max(p2.0[1])).floor() as i32);
-		for y in miny .. maxy + 1 {
-			for x in minx .. maxx + 1 {
-				match self.barycentric(&vec::Vec2::new(x as f64, y as f64), p0, p1, p2) {
-					None => (),
-					Some(bc) => {
-						let z = p0.0[2] * bc.0[0] + p1.0[2] * bc.0[1] + p2.0[2] * bc.0[2];
-						if zbuffer[x as usize + y as usize * self.width] < z {
-							zbuffer[x as usize + y as usize * self.width] = z;
-							let diffuse_x = ((t0.0[0] * bc.0[0] + t1.0[0] * bc.0[1] + t2.0[0] * bc.0[2]) * texture.get_width() as f64).floor() as usize;
-							let diffuse_y = ((t0.0[1] * bc.0[0] + t1.0[1] * bc.0[1] + t2.0[1] * bc.0[2]) * texture.get_height() as f64).floor() as usize;
-							let intensity = intensity.dot(&bc);
-							if intensity > 0f64 {
-								let color = texture.get(diffuse_x, diffuse_y).intensity(intensity);
-								self.set(x as usize, y as usize, &color);
-							}
-						}
-					}
-				}
-			}
-		}
-	}
+	Ok(())
 }

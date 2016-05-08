@@ -1,13 +1,8 @@
-use tga;
+use image;
 use vec;
 
-use std::fs::File;
-use std::io;
-use std::io::BufReader;
+use std::{ f64, fs, io, num, path };
 use std::io::BufRead;
-use std::num;
-use std::path::Path;
-use std::f64;
 
 #[derive(Debug)]
 pub enum ModelError {
@@ -55,8 +50,8 @@ impl Model {
 		}
 	}
 
-	pub fn read(path: &Path) -> Result<Model, ModelError> {
-		let file = BufReader::new(try!(File::open(path)));
+	pub fn read(path: &path::Path) -> Result<Model, ModelError> {
+		let file = io::BufReader::new(try!(fs::File::open(path)));
 		let mut model = Model::new();
 		for line in file.lines() {
 			let line = try!(line);
@@ -114,7 +109,7 @@ impl Model {
 	}
 
 	#[allow(dead_code)]
-	pub fn wireframe(&self, image: &mut tga::TgaImage, x: i32, y: i32, w: i32, h: i32, color: &tga::TgaColor) {
+	pub fn wireframe(&self, image: &mut image::Image, x: i32, y: i32, w: i32, h: i32, color: &image::Color) {
 		let width = w as f64;
 		let height = h as f64;
 
@@ -134,7 +129,7 @@ impl Model {
 		}
 	}
 
-	pub fn render(&self, image: &mut tga::TgaImage, texture: &tga::TgaImage,
+	pub fn render(&self, image: &mut image::Image, texture: &image::Image,
 			  transform: &vec::Transform4<f64>) {
 		let light_dir = vec::Vec3::new(1f64, -1f64, 1f64).normalize();
 		let mut zbuffer = vec![f64::MIN; image.get_width() * image.get_height()];
