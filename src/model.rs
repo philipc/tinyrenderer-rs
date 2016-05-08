@@ -1,4 +1,5 @@
 use image;
+use image::Shader;
 use vec;
 
 use std::{ f64, fs, io, num, path };
@@ -131,27 +132,14 @@ impl Model {
 		}
 	}
 
-	pub fn render(&self, image: &mut image::Image, texture: &image::Image,
-			  transform: &vec::Transform4<f64>) {
-		let light_dir = vec::Vec3::new(1f64, -1f64, 1f64).normalize();
+	pub fn render(&self, image: &mut image::Image, shader: &mut image::Shader, texture: &image::Image) {
 		let mut zbuffer = vec![f64::MIN; image.get_width() * image.get_height()];
 
 		for face in &self.face {
-			let p0 = &self.vert[face.vert[0]].transform(transform);
-			let p1 = &self.vert[face.vert[1]].transform(transform);
-			let p2 = &self.vert[face.vert[2]].transform(transform);
-
-			let t0 = &self.texture[face.texture[0]];
-			let t1 = &self.texture[face.texture[1]];
-			let t2 = &self.texture[face.texture[2]];
-
-			let intensity = &vec::Vec3([
-				self.normal[face.vert[0]].dot(&light_dir),
-				self.normal[face.vert[1]].dot(&light_dir),
-				self.normal[face.vert[2]].dot(&light_dir)
-					]);
-
-			image.render(p0, p1, p2, t0, t1, t2, intensity, texture, &mut zbuffer[..]);
+			let p0 = &shader.vertex(0, &self.vert[face.vert[0]], &self.texture[face.texture[0]], &self.normal[face.vert[0]]);
+			let p1 = &shader.vertex(1, &self.vert[face.vert[1]], &self.texture[face.texture[1]], &self.normal[face.vert[1]]);
+			let p2 = &shader.vertex(2, &self.vert[face.vert[2]], &self.texture[face.texture[2]], &self.normal[face.vert[2]]);
+			image.render(shader, texture, p0, p1, p2, &mut zbuffer[..]);
 		}
 	}
 }

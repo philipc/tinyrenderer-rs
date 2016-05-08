@@ -40,7 +40,7 @@ impl Color {
 		}
 	}
 
-	fn intensity(&self, intensity: f64) -> Self {
+	pub fn intensity(&self, intensity: f64) -> Self {
 		Color {
 			r: (self.r as f64 * intensity).round() as u8,
 			g: (self.g as f64 * intensity).round() as u8,
@@ -364,10 +364,9 @@ impl Image {
 		Some(vec::Vec3::new(l0, l1, l2))
 	}
 
-	pub fn render(&mut self,
-		     p0: &vec::Vec3<f64>, p1: &vec::Vec3<f64>, p2: &vec::Vec3<f64>,
-		     t0: &vec::Vec3<f64>, t1: &vec::Vec3<f64>, t2: &vec::Vec3<f64>,
-		     intensity: &vec::Vec3<f64>, texture: &Image, zbuffer: &mut [f64]) {
+	pub fn render(&mut self, shader: &Shader, texture: &Image,
+		      p0: &vec::Vec3<f64>, p1: &vec::Vec3<f64>, p2: &vec::Vec3<f64>,
+		      zbuffer: &mut [f64]) {
 		let minx = cmp::max(0, p0.0[0].min(p1.0[0].min(p2.0[0])).ceil() as i32);
 		let miny = cmp::max(0, p0.0[1].min(p1.0[1].min(p2.0[1])).ceil() as i32);
 		let maxx = cmp::min(self.width as i32 - 1, p0.0[0].max(p1.0[0].max(p2.0[0])).floor() as i32);
@@ -379,13 +378,12 @@ impl Image {
 					Some(bc) => {
 						let z = p0.0[2] * bc.0[0] + p1.0[2] * bc.0[1] + p2.0[2] * bc.0[2];
 						if zbuffer[x as usize + y as usize * self.width] < z {
-							zbuffer[x as usize + y as usize * self.width] = z;
-							let diffuse_x = ((t0.0[0] * bc.0[0] + t1.0[0] * bc.0[1] + t2.0[0] * bc.0[2]) * texture.get_width() as f64).floor() as usize;
-							let diffuse_y = ((t0.0[1] * bc.0[0] + t1.0[1] * bc.0[1] + t2.0[1] * bc.0[2]) * texture.get_height() as f64).floor() as usize;
-							let intensity = intensity.dot(&bc);
-							if intensity > 0f64 {
-								let color = texture.get(diffuse_x, diffuse_y).intensity(intensity);
-								self.set(x as usize, y as usize, &color);
+							match shader.fragment(&bc, texture) {
+								None => (),
+								Some(color) => {
+									zbuffer[x as usize + y as usize * self.width] = z;
+									self.set(x as usize, y as usize, &color);
+								}
 							}
 						}
 					}
@@ -393,4 +391,9 @@ impl Image {
 			}
 		}
 	}
+}
+
+pub trait Shader {
+	fn vertex(&mut self, i: usize, vert: &vec::Vec3<f64>, uv: &vec::Vec3<f64>, normal: &vec::Vec3<f64>) -> vec::Vec3<f64>;
+	fn fragment(&self, bc: &vec::Vec3<f64>, texture: &Image) -> Option<Color>;
 }

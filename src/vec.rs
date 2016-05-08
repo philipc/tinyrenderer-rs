@@ -16,6 +16,12 @@ impl<T> Vec2<T> where T: Copy {
 
 pub struct Vec3<T> (pub vecmath::Vector3<T>);
 
+impl Default for Vec3<f64> {
+	fn default() -> Self {
+		Vec3([0f64, 0f64, 0f64])
+	}
+}
+
 impl<T> Vec3<T> where T: Copy {
 	pub fn new(x: T, y: T, z: T) -> Self {
 		Vec3([x, y, z])
@@ -83,6 +89,12 @@ impl Vec4<f64> {
 }
 
 pub struct Transform4<T> (pub vecmath::Matrix4<T>);
+
+impl Default for Transform4<f64> {
+	fn default() -> Self {
+		Transform4(vecmath::mat4_id())
+	}
+}
 
 impl Transform4<f64> {
 	pub fn mul(&self, mat: &Transform4<f64>) -> Self {
