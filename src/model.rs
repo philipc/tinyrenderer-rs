@@ -40,8 +40,8 @@ pub struct Model {
 	face: Vec<Face>,
 }
 
-impl Model {
-	pub fn new() -> Self {
+impl Default for Model {
+	fn default() -> Self {
 		Model {
 			vert: Vec::new(),
 			normal: Vec::new(),
@@ -49,10 +49,12 @@ impl Model {
 			face: Vec::new(),
 		}
 	}
+}
 
+impl Model {
 	pub fn read(path: &path::Path) -> Result<Model, ModelError> {
 		let file = io::BufReader::new(try!(fs::File::open(path)));
-		let mut model = Model::new();
+		let mut model = Model::default();
 		for line in file.lines() {
 			let line = try!(line);
 			let mut words = line.split_whitespace();

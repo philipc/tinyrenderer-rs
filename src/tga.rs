@@ -161,7 +161,7 @@ pub fn write(image: &image::Image, path: &path::Path, rle: bool) -> io::Result<(
 	Ok(())
 }
 
-fn write_rle(file: &mut io::Write, data: &Vec<u8>, format: image::Format) -> io::Result<()> {
+fn write_rle(file: &mut io::Write, data: &[u8], format: image::Format) -> io::Result<()> {
 	let bytes_per_pixel = format.bytes_per_pixel();
 	let num_pixels = data.len() / bytes_per_pixel;
 	let mut start_pixel = 0;
