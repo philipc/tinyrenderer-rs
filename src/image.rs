@@ -40,6 +40,14 @@ impl Color {
 		}
 	}
 
+	// FIXME: move into model
+	pub fn to_vec3f(&self) -> vec::Vec3<f64> {
+		let convert = |x| {
+			(x as f64) * 2f64 / 255f64 - 1f64
+		};
+		vec::Vec3::new(convert(self.r), convert(self.g), convert(self.b))
+	}
+
 	pub fn intensity(&self, intensity: f64) -> Self {
 		Color {
 			r: (self.r as f64 * intensity).round() as u8,
@@ -80,6 +88,12 @@ pub struct Image {
 	width: usize,
 	height: usize,
 	format: Format,
+}
+
+impl Default for Image {
+	fn default() -> Self {
+		Image::new(0, 0, Format::Rgb)
+	}
 }
 
 impl Image {
@@ -364,9 +378,12 @@ impl Image {
 		Some(vec::Vec3::new(l0, l1, l2))
 	}
 
-	pub fn render(&mut self, shader: &Shader, texture: &Image,
+	pub fn render(&mut self, shader: &Shader, viewport: &vec::Transform4<f64>,
 		      p0: &vec::Vec3<f64>, p1: &vec::Vec3<f64>, p2: &vec::Vec3<f64>,
 		      zbuffer: &mut [f64]) {
+		let p0 = &p0.transform_pt(viewport);
+		let p1 = &p1.transform_pt(viewport);
+		let p2 = &p2.transform_pt(viewport);
 		let minx = cmp::max(0, p0.0[0].min(p1.0[0].min(p2.0[0])).ceil() as i32);
 		let miny = cmp::max(0, p0.0[1].min(p1.0[1].min(p2.0[1])).ceil() as i32);
 		let maxx = cmp::min(self.width as i32 - 1, p0.0[0].max(p1.0[0].max(p2.0[0])).floor() as i32);
@@ -378,13 +395,10 @@ impl Image {
 					Some(bc) => {
 						let z = p0.0[2] * bc.0[0] + p1.0[2] * bc.0[1] + p2.0[2] * bc.0[2];
 						if zbuffer[x as usize + y as usize * self.width] < z {
-							match shader.fragment(&bc, texture) {
-								None => (),
-								Some(color) => {
-									zbuffer[x as usize + y as usize * self.width] = z;
-									self.set(x as usize, y as usize, &color);
-								}
-							}
+							shader.fragment(&bc).map(|color| {
+								zbuffer[x as usize + y as usize * self.width] = z;
+								self.set(x as usize, y as usize, &color);
+							});
 						}
 					}
 				}
@@ -395,5 +409,5 @@ impl Image {
 
 pub trait Shader {
 	fn vertex(&mut self, i: usize, vert: &vec::Vec3<f64>, uv: &vec::Vec3<f64>, normal: &vec::Vec3<f64>) -> vec::Vec3<f64>;
-	fn fragment(&self, bc: &vec::Vec3<f64>, texture: &Image) -> Option<Color>;
+	fn fragment(&self, bc: &vec::Vec3<f64>) -> Option<Color>;
 }

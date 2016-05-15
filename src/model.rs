@@ -132,14 +132,14 @@ impl Model {
 		}
 	}
 
-	pub fn render(&self, image: &mut image::Image, shader: &mut image::Shader, texture: &image::Image) {
+	pub fn render(&self, image: &mut image::Image, shader: &mut image::Shader, viewport: &vec::Transform4<f64>) {
 		let mut zbuffer = vec![f64::MIN; image.get_width() * image.get_height()];
 
 		for face in &self.face {
 			let p0 = &shader.vertex(0, &self.vert[face.vert[0]], &self.texture[face.texture[0]], &self.normal[face.vert[0]]);
 			let p1 = &shader.vertex(1, &self.vert[face.vert[1]], &self.texture[face.texture[1]], &self.normal[face.vert[1]]);
 			let p2 = &shader.vertex(2, &self.vert[face.vert[2]], &self.texture[face.texture[2]], &self.normal[face.vert[2]]);
-			image.render(shader, texture, p0, p1, p2, &mut zbuffer[..]);
+			image.render(shader, viewport, p0, p1, p2, &mut zbuffer[..]);
 		}
 	}
 }

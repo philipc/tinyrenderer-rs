@@ -59,7 +59,7 @@ impl Vec3<f64> {
 		     self.0[2] / n ])
 	}
 
-	pub fn to_vec4(&self) -> Vec4<f64> {
+	pub fn to_pt4(&self) -> Vec4<f64> {
 		Vec4([
 		     self.0[0],
 		     self.0[1],
@@ -67,7 +67,19 @@ impl Vec3<f64> {
 		     1f64 ])
 	}
 
-	pub fn transform(&self, transform: &Transform4<f64>) -> Self {
+	pub fn to_vec4(&self) -> Vec4<f64> {
+		Vec4([
+		     self.0[0],
+		     self.0[1],
+		     self.0[2],
+		     0f64 ])
+	}
+
+	pub fn transform_pt(&self, transform: &Transform4<f64>) -> Self {
+		self.to_pt4().transform(transform).to_pt3()
+	}
+
+	pub fn transform_vec(&self, transform: &Transform4<f64>) -> Self {
 		self.to_vec4().transform(transform).to_vec3()
 	}
 }
@@ -75,7 +87,7 @@ impl Vec3<f64> {
 pub struct Vec4<T> (pub vecmath::Vector4<T>);
 
 impl Vec4<f64> {
-	pub fn to_vec3(&self) -> Vec3<f64> {
+	pub fn to_pt3(&self) -> Vec3<f64> {
 		let w = self.0[3];
 		Vec3([
 		     self.0[0] / w,
@@ -83,8 +95,37 @@ impl Vec4<f64> {
 		     self.0[2] / w ])
 	}
 
+	pub fn to_vec3(&self) -> Vec3<f64> {
+		Vec3([
+		     self.0[0],
+		     self.0[1],
+		     self.0[2] ])
+	}
+
 	pub fn transform(&self, transform: &Transform4<f64>) -> Self {
 		Vec4(vecmath::row_mat4_transform(transform.0, self.0))
+	}
+}
+
+pub struct Mat3<T> (pub vecmath::Matrix3<T>);
+
+impl Default for Mat3<f64> {
+	fn default() -> Self {
+		Mat3(vecmath::mat3_id())
+	}
+}
+
+impl Mat3<f64> {
+	pub fn set_row(&mut self, i: usize, v: &Vec3<f64>) {
+		self.0[i] = v.0;
+	}
+
+	pub fn dot_col(&self, v: &Vec3<f64>) -> Vec3<f64> {
+		Vec3(vecmath::col_mat3_transform(self.0, v.0))
+	}
+
+	pub fn dot_row(&self, v: &Vec3<f64>) -> Vec3<f64> {
+		Vec3(vecmath::row_mat3_transform(self.0, v.0))
 	}
 }
 
@@ -100,6 +141,10 @@ impl Transform4<f64> {
 	pub fn mul(&self, mat: &Transform4<f64>) -> Self {
 		Transform4(vecmath::row_mat4_mul(self.0, mat.0))
 	}
+
+	pub fn inverse_transpose(&self) -> Self {
+		Transform4(vecmath::mat4_inv(vecmath::mat4_transposed(self.0)))
+	}
 }
 
 pub fn viewport(x: f64, y: f64, z: f64, w: f64, h: f64, d: f64) -> Transform4<f64> {
@@ -113,17 +158,17 @@ pub fn viewport(x: f64, y: f64, z: f64, w: f64, h: f64, d: f64) -> Transform4<f6
 	Transform4(mat)
 }
 
-pub fn project(z: f64) -> Transform4<f64> {
+pub fn project(eye: &Vec3<f64>, center: &Vec3<f64>) -> Transform4<f64> {
 	let mut mat = vecmath::mat4_id();
-	mat[3][2] = -1f64 / z;
+	mat[3][2] = -1f64 / eye.sub(center).norm();
 	Transform4(mat)
 }
 
 pub fn lookat(eye: &Vec3<f64>, center: &Vec3<f64>, up: &Vec3<f64>) -> Transform4<f64> {
 	let mut translate = vecmath::mat4_id();
-	translate[0][3] = center.0[0];
-	translate[1][3] = center.0[1];
-	translate[2][3] = center.0[2];
+	translate[0][3] = -center.0[0];
+	translate[1][3] = -center.0[1];
+	translate[2][3] = -center.0[2];
 
 	let z = &eye.sub(center).normalize();
 	let x = &up.cross(z).normalize();
