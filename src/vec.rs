@@ -33,6 +33,10 @@ impl<T> Vec3<T> where T: Copy {
 }
 
 impl<T> Vec3<T> where T: Copy + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<T, Output = T> + ops::Div<T, Output = T> {
+	pub fn scale(&self, n: T) -> Self {
+		Vec3(vecmath::vec3_scale(self.0, n))
+	}
+
 	pub fn sub(&self, v: &Vec3<T>) -> Self {
 		Vec3(vecmath::vec3_sub(self.0, v.0))
 	}

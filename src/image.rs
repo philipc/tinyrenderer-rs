@@ -5,10 +5,10 @@ use std::{ cmp, mem };
 #[derive(Default)]
 #[repr(C, packed)]
 pub struct Color {
-	b: u8,
-	g: u8,
-	r: u8,
-	a: u8,
+	pub b: u8,
+	pub g: u8,
+	pub r: u8,
+	pub a: u8,
 }
 
 impl Color {
@@ -22,12 +22,11 @@ impl Color {
 	}
 
 	fn from_u8(buf: &[u8]) -> Self {
-		let a = if buf.len() >= 4 { buf[3] } else { 0 };
-		Color {
-			b: buf[0],
-			g: buf[1],
-			r: buf[2],
-			a: a,
+		match buf.len() {
+			1 => Color { b: buf[0], g: buf[0], r: buf[0], a: 255 },
+			3 => Color { b: buf[0], g: buf[1], r: buf[2], a: 255 },
+			4 => Color { b: buf[0], g: buf[1], r: buf[2], a: buf[3] },
+			_ => Color { b: 0, g: 0, r: 0, a: 0 }
 		}
 	}
 
@@ -48,13 +47,18 @@ impl Color {
 		vec::Vec3::new(convert(self.r), convert(self.g), convert(self.b))
 	}
 
-	pub fn intensity(&self, intensity: f64) -> Self {
+	pub fn map<F>(&self, convert: F) -> Self
+			where F: Fn(u8) -> u8 {
 		Color {
-			r: (self.r as f64 * intensity).round() as u8,
-			g: (self.g as f64 * intensity).round() as u8,
-			b: (self.b as f64 * intensity).round() as u8,
-			a: 255,
+			r: convert(self.r),
+			g: convert(self.g),
+			b: convert(self.b),
+			a: self.a,
 		}
+	}
+
+	pub fn intensity(&self, intensity: f64) -> Self {
+		self.map(|x| { (x as f64 * intensity).round() as u8 })
 	}
 }
 
