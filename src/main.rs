@@ -3,16 +3,10 @@ mod model;
 mod tga;
 mod vec;
 
-use std::path;
+use std::{env, f64, path};
 
 fn main() {
 	let (width, height) = (800, 800);
-	let mut image = image::Image::new(width, height, image::Format::Rgb);
-
-	let model = model::Model::read(path::Path::new("african_head.obj")).unwrap();
-	let texture = Box::new(tga::read(path::Path::new("african_head_diffuse.tga")).unwrap());
-	let normal = Box::new(tga::read(path::Path::new("african_head_nm.tga")).unwrap());
-
 	let viewport = &vec::viewport(width as f64 / 8f64, height as f64 / 8f64, 0f64,
 				      width as f64 * 0.75f64, height as f64 * 0.75f64, 255f64);
 	let light = vec::Vec3([ 1f64, 1f64, 1f64 ]).normalize();
@@ -24,25 +18,33 @@ fn main() {
 	let transform = projection.mul(modelview);
 	let transform_it = transform.inverse_transpose();
 	//let light = light.transform_vec(&transform).normalize();
-	let mut shader = Shader {
-		light: light,
-		transform: transform,
-		transform_it: transform_it,
-		texture: texture,
-		normal: normal,
-		.. Default::default()
-	};
-	model.render(&mut image, &mut shader, viewport);
+
+	let mut image = image::Image::new(width, height, image::Format::Rgb);
+	let mut zbuffer = vec![f64::MIN; image.get_width() * image.get_height()];
+	for arg in env::args().skip(1) {
+		let model = model::Model::read(path::Path::new(&format!("{}.obj", arg))).unwrap();
+		let texture = Box::new(tga::read(path::Path::new(&format!("{}_diffuse.tga", arg))).unwrap());
+		let normal = Box::new(tga::read(path::Path::new(&format!("{}_nm.tga", arg))).unwrap());
+		let mut shader = Shader {
+			light: &light,
+			transform: &transform,
+			transform_it: &transform_it,
+			texture: texture,
+			normal: normal,
+			u: Default::default(),
+			v: Default::default(),
+		};
+		model.render(&mut image, &mut shader, viewport, &mut zbuffer[..]);
+	}
 
 	tga::write(&image, path::Path::new("output.tga"), true).unwrap();
 }
 
-#[derive(Default)]
-struct Shader {
+struct Shader<'a> {
 	// uniform
-	light: vec::Vec3<f64>,
-	transform: vec::Transform4<f64>,
-	transform_it: vec::Transform4<f64>,
+	light: &'a vec::Vec3<f64>,
+	transform: &'a vec::Transform4<f64>,
+	transform_it: &'a vec::Transform4<f64>,
 	texture: Box<image::Image>,
 	normal: Box<image::Image>,
 
@@ -53,7 +55,7 @@ struct Shader {
 	//vnormal: vec::Mat3<f64>,
 }
 
-impl image::Shader for Shader {
+impl<'a> image::Shader for Shader<'a> {
 	fn vertex(&mut self, idx: usize, vert: &vec::Vec3<f64>, uv: &vec::Vec3<f64>, normal: &vec::Vec3<f64>) -> vec::Vec3<f64> {
 		self.u.0[idx] = uv.0[0];
 		self.v.0[idx] = uv.0[1];
