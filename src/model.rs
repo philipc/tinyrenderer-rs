@@ -32,6 +32,7 @@ impl From<num::ParseIntError> for ModelError {
 struct Face {
 	vert: Vec<usize>,
 	texture: Vec<usize>,
+	normal: Vec<usize>,
 }
 
 pub struct Model {
@@ -63,7 +64,7 @@ impl Model {
 				Some("v") => model.vert.push(try!(Model::read_vert(&mut words))),
 				Some("vn") => model.normal.push(try!(Model::read_vert(&mut words))),
 				Some("vt") => model.texture.push(try!(Model::read_vert(&mut words))),
-				Some("f") => model.face.push(try!(Model::read_face(&mut words, model.vert.len(), model.texture.len()))),
+				Some("f") => model.face.push(try!(Model::read_face(&mut words, model.vert.len(), model.texture.len(), model.normal.len()))),
 				_ => (),
 			}
 		};
@@ -73,7 +74,7 @@ impl Model {
 	fn read_vert<'a, I: Iterator<Item=&'a str>>(words: &mut I) -> Result<vec::Vec3<f64>, ModelError> {
 		let x = try!(Model::read_f64(words));
 		let y = try!(Model::read_f64(words));
-		let z = try!(Model::read_f64(words));
+		let z = Model::read_f64(words).unwrap_or(0f64);
 		Ok(vec::Vec3::new(x, y, z))
 	}
 
@@ -84,15 +85,17 @@ impl Model {
 		}
 	}
 
-	fn read_face<'a, I: Iterator<Item=&'a str>>(words: &mut I, vert_len: usize, texture_len: usize) -> Result<Face, ModelError> {
+	fn read_face<'a, I: Iterator<Item=&'a str>>(words: &mut I, vert_len: usize, texture_len: usize, normal_len: usize) -> Result<Face, ModelError> {
 		let mut face = Face {
 			vert: Vec::new(),
 			texture: Vec::new(),
+			normal: Vec::new(),
 		};
 		for word in words {
 			let mut indices = word.split('/');
 			face.vert.push(try!(Model::read_idx(indices.next(), vert_len)));
 			face.texture.push(try!(Model::read_idx(indices.next(), texture_len)));
+			face.normal.push(try!(Model::read_idx(indices.next(), normal_len)));
 		}
 		if face.vert.len() != 3 {
 			return Err(ModelError::Parse("face must have exactly 3 vertices".into()));
@@ -135,11 +138,18 @@ impl Model {
 	pub fn render(&self, image: &mut image::Image, shader: &mut image::Shader, viewport: &vec::Transform4<f64>,
 		      zbuffer: &mut [f64]) {
 		for face in &self.face {
-			let p0 = &shader.vertex(0, &self.vert[face.vert[0]], &self.texture[face.texture[0]], &self.normal[face.vert[0]]);
-			let p1 = &shader.vertex(1, &self.vert[face.vert[1]], &self.texture[face.texture[1]], &self.normal[face.vert[1]]);
-			let p2 = &shader.vertex(2, &self.vert[face.vert[2]], &self.texture[face.texture[2]], &self.normal[face.vert[2]]);
+			let p0 = &self.render_vertex(shader, face, 0);
+			let p1 = &self.render_vertex(shader, face, 1);
+			let p2 = &self.render_vertex(shader, face, 2);
 			image.render(shader, viewport, p0, p1, p2, zbuffer);
 		}
+	}
+
+	fn render_vertex(&self, shader: &mut image::Shader, face: &Face, idx: usize) -> vec::Vec3<f64> {
+		let vert = &self.vert[face.vert[idx]];
+		let texture = &self.texture[face.texture[idx]];
+		let normal = &self.normal[face.normal[idx]];
+		shader.vertex(idx, vert, texture, normal)
 	}
 }
 

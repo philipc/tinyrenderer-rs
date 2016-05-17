@@ -24,10 +24,10 @@ fn main() {
 	for arg in env::args().skip(1) {
 		let model = model::Model::read(path::Path::new(&format!("{}.obj", arg))).unwrap();
 		let texture = Box::new(tga::read(path::Path::new(&format!("{}_diffuse.tga", arg))).unwrap());
-		let normal = Box::new(tga::read(path::Path::new(&format!("{}_nm.tga", arg))).unwrap());
-		let specular = Box::new(tga::read(path::Path::new(&format!("{}_spec.tga", arg))).unwrap());
+		let normal = Box::new(tga::read(path::Path::new(&format!("{}_nm.tga", arg))).unwrap_or(image::Image::default()));
+		let specular = Box::new(tga::read(path::Path::new(&format!("{}_spec.tga", arg))).unwrap_or(image::Image::default()));
 		let mut shader = Shader {
-			intensity: Intensity::NormalMapSpecular,
+			intensity: Intensity::Gouraud,
 			color: Color::Texture,
 			light: &light,
 			light_transform: &light_transform,
