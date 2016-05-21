@@ -2,6 +2,7 @@ extern crate vecmath;
 
 use std::ops;
 
+#[derive(Debug)]
 pub struct Vec2<T> (pub vecmath::Vector2<T>);
 
 impl<T> Vec2<T> where T: Copy {
@@ -14,6 +15,7 @@ impl<T> Vec2<T> where T: Copy {
 	}
 }
 
+#[derive(Debug)]
 pub struct Vec3<T> (pub vecmath::Vector3<T>);
 
 impl Default for Vec3<f64> {
@@ -86,8 +88,13 @@ impl Vec3<f64> {
 	pub fn transform_vec(&self, transform: &Transform4<f64>) -> Self {
 		self.to_vec4().transform(transform).to_vec3()
 	}
+
+	pub fn mul(&self, mat: &Mat3<f64>) -> Self {
+		Vec3(vecmath::row_mat3_transform(mat.0, self.0))
+	}
 }
 
+#[derive(Debug)]
 pub struct Vec4<T> (pub vecmath::Vector4<T>);
 
 impl Vec4<f64> {
@@ -111,6 +118,7 @@ impl Vec4<f64> {
 	}
 }
 
+#[derive(Debug)]
 pub struct Mat3<T> (pub vecmath::Matrix3<T>);
 
 impl Default for Mat3<f64> {
@@ -124,6 +132,12 @@ impl Mat3<f64> {
 		self.0[i] = v.0;
 	}
 
+	pub fn set_col(&mut self, i: usize, v: &Vec3<f64>) {
+		self.0[0][i] = v.0[0];
+		self.0[1][i] = v.0[1];
+		self.0[2][i] = v.0[2];
+	}
+
 	pub fn dot_col(&self, v: &Vec3<f64>) -> Vec3<f64> {
 		Vec3(vecmath::col_mat3_transform(self.0, v.0))
 	}
@@ -131,8 +145,13 @@ impl Mat3<f64> {
 	pub fn dot_row(&self, v: &Vec3<f64>) -> Vec3<f64> {
 		Vec3(vecmath::row_mat3_transform(self.0, v.0))
 	}
+
+	pub fn inv(&self) -> Self {
+		Mat3(vecmath::mat3_inv(self.0))
+	}
 }
 
+#[derive(Debug)]
 pub struct Transform4<T> (pub vecmath::Matrix4<T>);
 
 impl Default for Transform4<f64> {

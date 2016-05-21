@@ -24,10 +24,12 @@ fn main() {
 	for arg in env::args().skip(1) {
 		let model = model::Model::read(path::Path::new(&format!("{}.obj", arg))).unwrap();
 		let texture = Box::new(tga::read(path::Path::new(&format!("{}_diffuse.tga", arg))).unwrap());
+		//let texture = Box::new(tga::read(path::Path::new("obj/grid.tga")).unwrap());
 		let normal = Box::new(tga::read(path::Path::new(&format!("{}_nm.tga", arg))).unwrap_or(image::Image::default()));
+		let tangent = Box::new(tga::read(path::Path::new(&format!("{}_nm_tangent.tga", arg))).unwrap_or(image::Image::default()));
 		let specular = Box::new(tga::read(path::Path::new(&format!("{}_spec.tga", arg))).unwrap_or(image::Image::default()));
 		let mut shader = Shader {
-			intensity: Intensity::Gouraud,
+			intensity: Intensity::TangentMap,
 			color: Color::Texture,
 			light: &light,
 			light_transform: &light_transform,
@@ -36,8 +38,10 @@ fn main() {
 			texture: texture,
 			normal: normal,
 			specular: specular,
+			tangent: tangent,
 			u: Default::default(),
 			v: Default::default(),
+			vert: Default::default(),
 			vert_intensity: Default::default(),
 			vert_normal: Default::default(),
 		};
@@ -59,11 +63,13 @@ struct Shader<'a> {
 	transform_it: &'a vec::Transform4<f64>,
 	texture: Box<image::Image>,
 	normal: Box<image::Image>,
+	tangent: Box<image::Image>,
 	specular: Box<image::Image>,
 
 	// varying
 	u: vec::Vec3<f64>,
 	v: vec::Vec3<f64>,
+	vert: [vec::Vec3<f64>; 3],
 	vert_intensity: vec::Vec3<f64>,
 	vert_normal: vec::Mat3<f64>,
 }
@@ -76,6 +82,7 @@ enum Intensity {
 	NormalMap,
 	NormalMapTransform,
 	NormalMapSpecular,
+	TangentMap,
 }
 
 enum Color {
@@ -86,29 +93,35 @@ enum Color {
 impl<'a> image::Shader for Shader<'a> {
 	fn vertex(&mut self, idx: usize, vert: &vec::Vec3<f64>, uv: &vec::Vec3<f64>, normal: &vec::Vec3<f64>) -> vec::Vec3<f64> {
 		match self.intensity {
-			Intensity::Gouraud => {
+			Intensity::Gouraud
+			=> {
 				self.vert_intensity.0[idx] = normal.dot(&self.light).max(0f64);
 			},
-			Intensity::Phong => {
+			Intensity::Phong
+			=> {
 				self.vert_normal.set_row(idx, normal);
 			},
 			Intensity::PhongTransform
-			| Intensity::PhongSpecular => {
+			| Intensity::PhongSpecular
+			| Intensity::TangentMap
+			=> {
 				self.vert_normal.set_row(idx, &normal.transform_vec(&self.transform_it));
 			},
 			Intensity::NormalMap
 			| Intensity::NormalMapSpecular
-			| Intensity::NormalMapTransform => { }
+			| Intensity::NormalMapTransform
+			=> { }
 		}
 		self.u.0[idx] = uv.0[0];
 		self.v.0[idx] = uv.0[1];
+		self.vert[idx].0 = vert.transform_pt(&self.transform).0;
 		vert.transform_pt(&self.transform)
 	}
 
 	fn fragment(&self, bc: &vec::Vec3<f64>) -> Option<image::Color> {
 		let u = (self.u.dot(bc) * self.texture.get_width() as f64).floor() as usize;
 		let v = (self.v.dot(bc) * self.texture.get_height() as f64).floor() as usize;
-		let ambient = 5f64;
+		let ambient = 0f64;
 		let mut diffuse = 0f64;
 		let mut spec = 0f64;
 		match self.intensity {
@@ -144,6 +157,25 @@ impl<'a> image::Shader for Shader<'a> {
 				let reflect = normal.scale(2f64 * normal.dot(&self.light_transform)).sub(&self.light_transform).normalize();
 				let spec_power = self.specular.get(u, v).r as i32 + 1;
 				spec = reflect.0[2].max(0f64).powi(spec_power);
+			},
+			Intensity::TangentMap => {
+				let n = &self.vert_normal.dot_col(bc).normalize();
+
+				// Three vectors for which we know the dot product with u/v/n
+				let a = &mut vec::Mat3::default();
+				a.set_row(0, &self.vert[1].sub(&self.vert[0]));
+				a.set_row(1, &self.vert[2].sub(&self.vert[0]));
+				a.set_row(2, n);
+				let ai = &a.inv();
+
+				// Solve for u/v/n and normalize
+				let b = &mut vec::Mat3::default();
+				b.set_col(0, &vec::Vec3([ self.u.0[1] - self.u.0[0], self.u.0[2] - self.u.0[0], 0f64]).mul(ai).normalize());
+				b.set_col(1, &vec::Vec3([ self.v.0[1] - self.v.0[0], self.v.0[2] - self.v.0[0], 0f64]).mul(ai).normalize());
+				b.set_col(2, n);
+
+				let normal = &self.tangent.get(u, v).to_vec3f().mul(b).normalize();
+				diffuse = normal.dot(&self.light_transform).max(0f64);
 			},
 		};
 		let color = match self.color {
