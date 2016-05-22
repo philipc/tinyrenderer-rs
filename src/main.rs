@@ -9,18 +9,26 @@ fn main() {
 	let (width, height) = (800, 800);
 	let viewport = &vec::viewport(width as f64 / 8f64, height as f64 / 8f64, 0f64,
 				      width as f64 * 0.75f64, height as f64 * 0.75f64, 255f64);
-	let light = vec::Vec3([ 1f64, 1f64, 1f64 ]).normalize();
-	let eye = &vec::Vec3([ 1f64, 1f64, 3f64 ]);
+	let light = &vec::Vec3([ 1f64, 1f64, 0f64 ]).normalize();
+	let eye = &vec::Vec3([ 1f64, 1f64, 4f64 ]);
 	let center = &vec::Vec3([ 0f64, 0f64, 0f64 ]);
 	let up = &vec::Vec3([ 0f64, 1f64, 0f64 ]);
+
 	let projection = &vec::project(eye, center);
 	let modelview = &vec::lookat(eye, center, up);
 	let transform = projection.mul(modelview);
 	let transform_it = transform.inverse_transpose();
 	let light_transform = light.transform_vec(&transform).normalize();
 
+	let (shadow_width, shadow_height) = (800, 800);
+	let shadow_viewport = &vec::viewport(shadow_width as f64 / 8f64, shadow_height as f64 / 8f64, 0f64,
+					     shadow_width as f64 * 0.75f64, shadow_height as f64 * 0.75f64, 1f64);
+	let shadow_transform = &vec::lookat(light, center, up);
+
 	let mut image = image::Image::new(width, height, image::Format::Rgb);
+	let mut shadow_image = image::Image::new(shadow_width, shadow_height, image::Format::Rgb);
 	let mut zbuffer = vec![f64::MIN; image.get_width() * image.get_height()];
+	let mut shadow_zbuffer = vec![f64::MIN; shadow_image.get_width() * shadow_image.get_height()];
 	for arg in env::args().skip(1) {
 		let model = model::Model::read(path::Path::new(&format!("{}.obj", arg))).unwrap();
 		let texture = Box::new(tga::read(path::Path::new(&format!("{}_diffuse.tga", arg))).unwrap());
@@ -28,20 +36,39 @@ fn main() {
 		let normal = Box::new(tga::read(path::Path::new(&format!("{}_nm.tga", arg))).unwrap_or(image::Image::default()));
 		let tangent = Box::new(tga::read(path::Path::new(&format!("{}_nm_tangent.tga", arg))).unwrap_or(image::Image::default()));
 		let specular = Box::new(tga::read(path::Path::new(&format!("{}_spec.tga", arg))).unwrap_or(image::Image::default()));
+
+		let mut shadow_shader = ShadowShader {
+			shadow_transform: &shadow_transform,
+			shadow_viewport: shadow_viewport,
+			shadow_vert: Default::default(),
+		};
+		model.render(&mut shadow_image, &mut shadow_shader, shadow_viewport, &mut shadow_zbuffer[..]);
+
 		let mut shader = Shader {
 			intensity: Intensity::TangentMap,
 			color: Color::Texture,
-			light: &light,
+			shadow: true,
+
+			light: light,
 			light_transform: &light_transform,
 			transform: &transform,
 			transform_it: &transform_it,
+
 			texture: texture,
 			normal: normal,
 			specular: specular,
 			tangent: tangent,
+
+			shadow_transform: &shadow_transform,
+			shadow_zbuffer: &shadow_zbuffer,
+			shadow_width: shadow_image.get_width(),
+			shadow_height: shadow_image.get_height(),
+			shadow_viewport: shadow_viewport,
+
 			u: Default::default(),
 			v: Default::default(),
 			vert: Default::default(),
+			shadow_vert: Default::default(),
 			vert_intensity: Default::default(),
 			vert_normal: Default::default(),
 		};
@@ -49,12 +76,35 @@ fn main() {
 	}
 
 	tga::write(&image, path::Path::new("output.tga"), true).unwrap();
+	tga::write(&shadow_image, path::Path::new("shadow.tga"), true).unwrap();
+}
+
+struct ShadowShader<'a> {
+	// uniform
+	shadow_transform: &'a vec::Transform4<f64>,
+	shadow_viewport: &'a vec::Transform4<f64>,
+
+	// varying
+	shadow_vert: vec::Mat3<f64>,
+}
+
+impl<'a> image::Shader for ShadowShader<'a> {
+	fn vertex(&mut self, idx: usize, vert: &vec::Vec3<f64>, uv: &vec::Vec3<f64>, normal: &vec::Vec3<f64>) -> vec::Vec3<f64> {
+		self.shadow_vert.set_row(idx, &vert.transform_pt(&self.shadow_transform));
+		vert.transform_pt(&self.shadow_transform)
+	}
+
+	fn fragment(&self, bc: &vec::Vec3<f64>) -> Option<image::Color> {
+		let shadow_p = self.shadow_vert.dot_col(bc).transform_pt(self.shadow_viewport);
+		Some(image::Color::new(255, 255, 255, 255).intensity(shadow_p.0[2]))
+	}
 }
 
 struct Shader<'a> {
 	// options
 	intensity: Intensity,
 	color: Color,
+	shadow: bool,
 
 	// uniform
 	light: &'a vec::Vec3<f64>,
@@ -66,10 +116,18 @@ struct Shader<'a> {
 	tangent: Box<image::Image>,
 	specular: Box<image::Image>,
 
+	// shadow
+	shadow_transform: &'a vec::Transform4<f64>,
+	shadow_zbuffer: &'a [f64],
+	shadow_width: usize,
+	shadow_height: usize,
+	shadow_viewport: &'a vec::Transform4<f64>,
+
 	// varying
 	u: vec::Vec3<f64>,
 	v: vec::Vec3<f64>,
 	vert: [vec::Vec3<f64>; 3],
+	shadow_vert: vec::Mat3<f64>,
 	vert_intensity: vec::Vec3<f64>,
 	vert_normal: vec::Mat3<f64>,
 }
@@ -115,13 +173,16 @@ impl<'a> image::Shader for Shader<'a> {
 		self.u.0[idx] = uv.0[0];
 		self.v.0[idx] = uv.0[1];
 		self.vert[idx].0 = vert.transform_pt(&self.transform).0;
+		if self.shadow {
+			self.shadow_vert.set_row(idx, &vert.transform_pt(&self.shadow_transform));
+		}
 		vert.transform_pt(&self.transform)
 	}
 
 	fn fragment(&self, bc: &vec::Vec3<f64>) -> Option<image::Color> {
 		let u = (self.u.dot(bc) * self.texture.get_width() as f64).floor() as usize;
 		let v = (self.v.dot(bc) * self.texture.get_height() as f64).floor() as usize;
-		let ambient = 0f64;
+		let ambient = 20f64;
 		let mut diffuse = 0f64;
 		let mut spec = 0f64;
 		match self.intensity {
@@ -178,12 +239,24 @@ impl<'a> image::Shader for Shader<'a> {
 				diffuse = normal.dot(&self.light_transform).max(0f64);
 			},
 		};
+		let mut shadow = 1.0;
+		if self.shadow {
+			let shadow_p = self.shadow_vert.dot_col(bc).transform_pt(self.shadow_viewport);
+			let shadow_x = shadow_p.0[0] as usize;
+			let shadow_y = shadow_p.0[1] as usize;
+			if shadow_x >= 0 && shadow_x < self.shadow_width && shadow_y >= 0 && shadow_y < self.shadow_height {
+				let shadow_z = self.shadow_zbuffer[shadow_x + shadow_y * self.shadow_width];
+				if shadow_p.0[2] + 0.01 < shadow_z {
+					shadow = 0.3;
+				}
+			}
+		}
 		let color = match self.color {
 			Color::White => image::Color::new(255, 255, 255, 255),
 			Color::Texture => self.texture.get(u, v),
 		};
 		let convert = |x| {
-			(ambient + (x as f64) * (diffuse + 0.6 * spec)).min(255f64) as u8
+			(ambient + (x as f64) * shadow * (diffuse + 0.6 * spec)).min(255f64) as u8
 		};
 		Some(color.map(convert))
 	}
