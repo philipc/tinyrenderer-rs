@@ -37,7 +37,7 @@ fn main() {
 		let tangent = Box::new(tga::read(path::Path::new(&format!("{}_nm_tangent.tga", arg))).unwrap_or(image::Image::default()));
 		let specular = Box::new(tga::read(path::Path::new(&format!("{}_spec.tga", arg))).unwrap_or(image::Image::default()));
 
-		let shadow = true;
+		let shadow = false;
 		if shadow {
 			let mut shadow_shader = ShadowShader {
 				shadow_transform: &shadow_transform,
@@ -48,7 +48,7 @@ fn main() {
 		}
 
 		let mut shader = Shader {
-			intensity: Intensity::TangentMap,
+			intensity: Intensity::Constant,
 			color: Color::Texture,
 			shadow: shadow,
 
@@ -136,6 +136,7 @@ struct Shader<'a> {
 }
 
 enum Intensity {
+	Constant,
 	Gouraud,
 	Phong,
 	PhongTransform,
@@ -168,7 +169,8 @@ impl<'a> image::Shader for Shader<'a> {
 			=> {
 				self.vert_normal.set_row(idx, &normal.transform_vec(&self.transform_it));
 			},
-			Intensity::NormalMap
+			Intensity::Constant
+			| Intensity::NormalMap
 			| Intensity::NormalMapSpecular
 			| Intensity::NormalMapTransform
 			=> { }
@@ -185,10 +187,13 @@ impl<'a> image::Shader for Shader<'a> {
 	fn fragment(&self, bc: &vec::Vec3<f64>) -> Option<image::Color> {
 		let u = (self.u.dot(bc) * self.texture.get_width() as f64).floor() as usize;
 		let v = (self.v.dot(bc) * self.texture.get_height() as f64).floor() as usize;
-		let ambient = 20f64;
+		let ambient = 0f64;
 		let mut diffuse = 0f64;
 		let mut spec = 0f64;
 		match self.intensity {
+			Intensity::Constant => {
+				diffuse = 1.0;
+			},
 			Intensity::Gouraud => {
 				diffuse = self.vert_intensity.dot(bc).max(0f64);
 			},
