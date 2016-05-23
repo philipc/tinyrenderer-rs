@@ -252,7 +252,7 @@ impl<'a> image::Shader for Shader<'a> {
 			let shadow_p = self.shadow_vert.dot_col(bc).transform_pt(self.shadow_viewport);
 			let shadow_x = shadow_p.0[0] as usize;
 			let shadow_y = shadow_p.0[1] as usize;
-			if shadow_x >= 0 && shadow_x < self.shadow_width && shadow_y >= 0 && shadow_y < self.shadow_height {
+			if shadow_x < self.shadow_width && shadow_y < self.shadow_height {
 				let shadow_z = self.shadow_zbuffer[shadow_x + shadow_y * self.shadow_width];
 				if shadow_p.0[2] + 0.01 < shadow_z {
 					shadow = 0.3;
