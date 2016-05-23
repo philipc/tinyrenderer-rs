@@ -138,12 +138,8 @@ impl Mat3<f64> {
 		self.0[2][i] = v.0[2];
 	}
 
-	pub fn dot_col(&self, v: &Vec3<f64>) -> Vec3<f64> {
+	pub fn interpolate(&self, v: &Vec3<f64>) -> Vec3<f64> {
 		Vec3(vecmath::col_mat3_transform(self.0, v.0))
-	}
-
-	pub fn dot_row(&self, v: &Vec3<f64>) -> Vec3<f64> {
-		Vec3(vecmath::row_mat3_transform(self.0, v.0))
 	}
 
 	pub fn inv(&self) -> Self {

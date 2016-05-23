@@ -98,7 +98,7 @@ impl<'a> image::Shader for ShadowShader<'a> {
 	}
 
 	fn fragment(&self, bc: &vec::Vec3<f64>) -> Option<image::Color> {
-		let shadow_p = self.shadow_vert.dot_col(bc).transform_pt(self.shadow_viewport);
+		let shadow_p = self.shadow_vert.interpolate(bc).transform_pt(self.shadow_viewport);
 		Some(image::Color::new(255, 255, 255, 255).intensity(shadow_p.0[2]))
 	}
 }
@@ -198,15 +198,15 @@ impl<'a> image::Shader for Shader<'a> {
 				diffuse = self.vert_intensity.dot(bc).max(0f64);
 			},
 			Intensity::Phong => {
-				let normal = &self.vert_normal.dot_col(bc).normalize();
+				let normal = &self.vert_normal.interpolate(bc).normalize();
 				diffuse = normal.dot(&self.light).max(0f64);
 			},
 			Intensity::PhongTransform => {
-				let normal = &self.vert_normal.dot_col(bc).normalize();
+				let normal = &self.vert_normal.interpolate(bc).normalize();
 				diffuse = normal.dot(&self.light_transform).max(0f64);
 			},
 			Intensity::PhongSpecular => {
-				let normal = &self.vert_normal.dot_col(bc).normalize();
+				let normal = &self.vert_normal.interpolate(bc).normalize();
 				diffuse = normal.dot(&self.light_transform).max(0f64);
 				let reflect = normal.scale(2f64 * normal.dot(&self.light_transform)).sub(&self.light_transform).normalize();
 				let spec_power = self.specular.get(u, v).r as i32;
@@ -228,7 +228,7 @@ impl<'a> image::Shader for Shader<'a> {
 				spec = reflect.0[2].max(0f64).powi(spec_power);
 			},
 			Intensity::TangentMap => {
-				let n = &self.vert_normal.dot_col(bc).normalize();
+				let n = &self.vert_normal.interpolate(bc).normalize();
 
 				// Three vectors for which we know the dot product with u/v/n
 				let a = &mut vec::Mat3::default();
@@ -249,7 +249,7 @@ impl<'a> image::Shader for Shader<'a> {
 		};
 		let mut shadow = 1.0;
 		if self.shadow {
-			let shadow_p = self.shadow_vert.dot_col(bc).transform_pt(self.shadow_viewport);
+			let shadow_p = self.shadow_vert.interpolate(bc).transform_pt(self.shadow_viewport);
 			let shadow_x = shadow_p.0[0] as usize;
 			let shadow_y = shadow_p.0[1] as usize;
 			if shadow_x < self.shadow_width && shadow_y < self.shadow_height {
