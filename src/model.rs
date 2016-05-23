@@ -145,7 +145,7 @@ impl Model {
 		}
 	}
 
-	fn render_vertex(&self, shader: &mut image::Shader, face: &Face, idx: usize) -> vec::Vec3<f64> {
+	fn render_vertex(&self, shader: &mut image::Shader, face: &Face, idx: usize) -> vec::Vec4<f64> {
 		let vert = &self.vert[face.vert[idx]];
 		let texture = &self.texture[face.texture[idx]];
 		let normal = &self.normal[face.normal[idx]];

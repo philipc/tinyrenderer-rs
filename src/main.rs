@@ -89,9 +89,9 @@ struct ShadowShader<'a> {
 }
 
 impl<'a> image::Shader for ShadowShader<'a> {
-	fn vertex(&mut self, idx: usize, vert: &vec::Vec3<f64>, uv: &vec::Vec3<f64>, normal: &vec::Vec3<f64>) -> vec::Vec3<f64> {
+	fn vertex(&mut self, idx: usize, vert: &vec::Vec3<f64>, uv: &vec::Vec3<f64>, normal: &vec::Vec3<f64>) -> vec::Vec4<f64> {
 		self.shadow_vert.set_row(idx, &vert.transform_pt(&self.shadow_transform));
-		vert.transform_pt(&self.shadow_transform)
+		vert.to_pt4().transform(&self.shadow_transform)
 	}
 
 	fn fragment(&self, bc: &vec::Vec3<f64>) -> Option<image::Color> {
@@ -149,7 +149,7 @@ enum Color {
 }
 
 impl<'a> image::Shader for Shader<'a> {
-	fn vertex(&mut self, idx: usize, vert: &vec::Vec3<f64>, uv: &vec::Vec3<f64>, normal: &vec::Vec3<f64>) -> vec::Vec3<f64> {
+	fn vertex(&mut self, idx: usize, vert: &vec::Vec3<f64>, uv: &vec::Vec3<f64>, normal: &vec::Vec3<f64>) -> vec::Vec4<f64> {
 		match self.intensity {
 			Intensity::Gouraud
 			=> {
@@ -176,7 +176,7 @@ impl<'a> image::Shader for Shader<'a> {
 		if self.shadow {
 			self.shadow_vert.set_row(idx, &vert.transform_pt(&self.shadow_transform));
 		}
-		vert.transform_pt(&self.transform)
+		vert.to_pt4().transform(&self.transform)
 	}
 
 	fn fragment(&self, bc: &vec::Vec3<f64>) -> Option<image::Color> {

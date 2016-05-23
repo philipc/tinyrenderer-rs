@@ -383,23 +383,32 @@ impl Image {
 	}
 
 	pub fn render(&mut self, shader: &Shader, viewport: &vec::Transform4<f64>,
-		      p0: &vec::Vec3<f64>, p1: &vec::Vec3<f64>, p2: &vec::Vec3<f64>,
+		      p0: &vec::Vec4<f64>, p1: &vec::Vec4<f64>, p2: &vec::Vec4<f64>,
 		      zbuffer: &mut [f64]) {
-		let p0 = &p0.transform_pt(viewport);
-		let p1 = &p1.transform_pt(viewport);
-		let p2 = &p2.transform_pt(viewport);
-		let minx = cmp::max(0, p0.0[0].min(p1.0[0].min(p2.0[0])).ceil() as i32);
-		let miny = cmp::max(0, p0.0[1].min(p1.0[1].min(p2.0[1])).ceil() as i32);
-		let maxx = cmp::min(self.width as i32 - 1, p0.0[0].max(p1.0[0].max(p2.0[0])).floor() as i32);
-		let maxy = cmp::min(self.height as i32 - 1, p0.0[1].max(p1.0[1].max(p2.0[1])).floor() as i32);
+		let clip0 = &p0.transform(viewport);
+		let clip1 = &p1.transform(viewport);
+		let clip2 = &p2.transform(viewport);
+		let screen0 = &clip0.to_pt3();
+		let screen1 = &clip1.to_pt3();
+		let screen2 = &clip2.to_pt3();
+		let minx = cmp::max(0, screen0.0[0].min(screen1.0[0].min(screen2.0[0])).ceil() as i32);
+		let miny = cmp::max(0, screen0.0[1].min(screen1.0[1].min(screen2.0[1])).ceil() as i32);
+		let maxx = cmp::min(self.width as i32 - 1, screen0.0[0].max(screen1.0[0].max(screen2.0[0])).floor() as i32);
+		let maxy = cmp::min(self.height as i32 - 1, screen0.0[1].max(screen1.0[1].max(screen2.0[1])).floor() as i32);
 		for y in miny .. maxy + 1 {
 			for x in minx .. maxx + 1 {
-				match self.barycentric(&vec::Vec2::new(x as f64, y as f64), p0, p1, p2) {
+				match self.barycentric(&vec::Vec2::new(x as f64, y as f64), screen0, screen1, screen2) {
 					None => (),
-					Some(bc) => {
-						let z = p0.0[2] * bc.0[0] + p1.0[2] * bc.0[1] + p2.0[2] * bc.0[2];
+					Some(screen_bc) => {
+						let z = screen0.0[2] * screen_bc.0[0] + screen1.0[2] * screen_bc.0[1] + screen2.0[2] * screen_bc.0[2];
 						if zbuffer[x as usize + y as usize * self.width] < z {
-							shader.fragment(&bc).map(|color| {
+							let clip_bc = vec::Vec3([
+										screen_bc.0[0] / clip0.0[3],
+										screen_bc.0[1] / clip1.0[3],
+										screen_bc.0[2] / clip2.0[3]
+										]);
+							let clip_bc = clip_bc.scale(1f64 / (clip_bc.0[0] + clip_bc.0[1] + clip_bc.0[2]));
+							shader.fragment(&clip_bc).map(|color| {
 								zbuffer[x as usize + y as usize * self.width] = z;
 								self.set(x as usize, y as usize, &color);
 							});
@@ -412,6 +421,6 @@ impl Image {
 }
 
 pub trait Shader {
-	fn vertex(&mut self, i: usize, vert: &vec::Vec3<f64>, uv: &vec::Vec3<f64>, normal: &vec::Vec3<f64>) -> vec::Vec3<f64>;
+	fn vertex(&mut self, i: usize, vert: &vec::Vec3<f64>, uv: &vec::Vec3<f64>, normal: &vec::Vec3<f64>) -> vec::Vec4<f64>;
 	fn fragment(&self, bc: &vec::Vec3<f64>) -> Option<Color>;
 }
