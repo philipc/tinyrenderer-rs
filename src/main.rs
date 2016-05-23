@@ -27,8 +27,8 @@ fn main() {
 
 	let mut image = image::Image::new(width, height, image::Format::Rgb);
 	let mut shadow_image = image::Image::new(shadow_width, shadow_height, image::Format::Rgb);
-	let mut zbuffer = vec![f64::MIN; image.get_width() * image.get_height()];
-	let mut shadow_zbuffer = vec![f64::MIN; shadow_image.get_width() * shadow_image.get_height()];
+	let mut zbuffer = vec![f64::MIN; width * height];
+	let mut shadow_zbuffer = vec![f64::MIN; shadow_width * shadow_height];
 	for arg in env::args().skip(1) {
 		let model = model::Model::read(path::Path::new(&format!("{}.obj", arg))).unwrap();
 		let texture = Box::new(tga::read(path::Path::new(&format!("{}_diffuse.tga", arg))).unwrap());
@@ -37,17 +37,20 @@ fn main() {
 		let tangent = Box::new(tga::read(path::Path::new(&format!("{}_nm_tangent.tga", arg))).unwrap_or(image::Image::default()));
 		let specular = Box::new(tga::read(path::Path::new(&format!("{}_spec.tga", arg))).unwrap_or(image::Image::default()));
 
-		let mut shadow_shader = ShadowShader {
-			shadow_transform: &shadow_transform,
-			shadow_viewport: shadow_viewport,
-			shadow_vert: Default::default(),
-		};
-		model.render(&mut shadow_image, &mut shadow_shader, shadow_viewport, &mut shadow_zbuffer[..]);
+		let shadow = true;
+		if shadow {
+			let mut shadow_shader = ShadowShader {
+				shadow_transform: &shadow_transform,
+				shadow_viewport: shadow_viewport,
+				shadow_vert: Default::default(),
+			};
+			model.render(&mut shadow_image, &mut shadow_shader, shadow_viewport, &mut shadow_zbuffer[..]);
+		}
 
 		let mut shader = Shader {
 			intensity: Intensity::TangentMap,
 			color: Color::Texture,
-			shadow: true,
+			shadow: shadow,
 
 			light: light,
 			light_transform: &light_transform,
@@ -61,8 +64,8 @@ fn main() {
 
 			shadow_transform: &shadow_transform,
 			shadow_zbuffer: &shadow_zbuffer,
-			shadow_width: shadow_image.get_width(),
-			shadow_height: shadow_image.get_height(),
+			shadow_width: shadow_width,
+			shadow_height: shadow_height,
 			shadow_viewport: shadow_viewport,
 
 			u: Default::default(),
