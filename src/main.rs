@@ -237,13 +237,13 @@ impl<'a> image::Shader for Shader<'a> {
 				a.set_row(2, n);
 				let ai = &a.inv();
 
-				// Solve for u/v/n and normalize
-				let b = &mut vec::Mat3::default();
-				b.set_col(0, &vec::Vec3([ self.u.0[1] - self.u.0[0], self.u.0[2] - self.u.0[0], 0f64]).mul(ai).normalize());
-				b.set_col(1, &vec::Vec3([ self.v.0[1] - self.v.0[0], self.v.0[2] - self.v.0[0], 0f64]).mul(ai).normalize());
-				b.set_col(2, n);
+				// Solve for u/v/n, normalize, and create change of basis transform
+				let b = &vec::Transform3::rotate(
+					&vec::Vec3([ self.u.0[1] - self.u.0[0], self.u.0[2] - self.u.0[0], 0f64]).mul(ai).normalize(),
+					&vec::Vec3([ self.v.0[1] - self.v.0[0], self.v.0[2] - self.v.0[0], 0f64]).mul(ai).normalize(),
+					n);
 
-				let normal = &self.tangent.get(u, v).to_vec3f().mul(b).normalize();
+				let normal = &self.tangent.get(u, v).to_vec3f().transform(b).normalize();
 				diffuse = normal.dot(&self.light_transform).max(0f64);
 			},
 		};

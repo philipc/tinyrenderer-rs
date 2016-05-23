@@ -81,6 +81,10 @@ impl Vec3<f64> {
 		     0f64 ])
 	}
 
+	pub fn transform(&self, transform: &Transform3<f64>) -> Self {
+		Vec3(vecmath::row_mat3_transform(transform.0, self.0))
+	}
+
 	pub fn transform_pt(&self, transform: &Transform4<f64>) -> Self {
 		self.to_pt4().transform(transform).to_pt3()
 	}
@@ -123,7 +127,7 @@ pub struct Mat3<T> (pub vecmath::Matrix3<T>);
 
 impl Default for Mat3<f64> {
 	fn default() -> Self {
-		Mat3(vecmath::mat3_id())
+		Mat3(Default::default())
 	}
 }
 
@@ -132,18 +136,33 @@ impl Mat3<f64> {
 		self.0[i] = v.0;
 	}
 
-	pub fn set_col(&mut self, i: usize, v: &Vec3<f64>) {
-		self.0[0][i] = v.0[0];
-		self.0[1][i] = v.0[1];
-		self.0[2][i] = v.0[2];
-	}
-
 	pub fn interpolate(&self, v: &Vec3<f64>) -> Vec3<f64> {
 		Vec3(vecmath::col_mat3_transform(self.0, v.0))
 	}
 
 	pub fn inv(&self) -> Self {
 		Mat3(vecmath::mat3_inv(self.0))
+	}
+}
+
+#[derive(Debug)]
+pub struct Transform3<T> (pub vecmath::Matrix3<T>);
+
+impl Default for Transform3<f64> {
+	fn default() -> Self {
+		Transform3(vecmath::mat3_id())
+	}
+}
+
+impl Transform3<f64> {
+	pub fn rotate(x: &Vec3<f64>, y: &Vec3<f64>, z: &Vec3<f64>) -> Self {
+		let mut rotate = vecmath::mat3_id();
+		for i in 0..3 {
+			rotate[0][i] = x.0[i];
+			rotate[1][i] = y.0[i];
+			rotate[2][i] = z.0[i];
+		}
+		Transform3(rotate)
 	}
 }
 
@@ -157,6 +176,16 @@ impl Default for Transform4<f64> {
 }
 
 impl Transform4<f64> {
+	pub fn rotate(x: &Vec3<f64>, y: &Vec3<f64>, z: &Vec3<f64>) -> Self {
+		let mut rotate = vecmath::mat4_id();
+		for i in 0..3 {
+			rotate[0][i] = x.0[i];
+			rotate[1][i] = y.0[i];
+			rotate[2][i] = z.0[i];
+		}
+		Transform4(rotate)
+	}
+
 	pub fn mul(&self, mat: &Transform4<f64>) -> Self {
 		Transform4(vecmath::row_mat4_mul(self.0, mat.0))
 	}
@@ -192,11 +221,6 @@ pub fn lookat(eye: &Vec3<f64>, center: &Vec3<f64>, up: &Vec3<f64>) -> Transform4
 	let z = &eye.sub(center).normalize();
 	let x = &up.cross(z).normalize();
 	let y = &z.cross(x).normalize();
-	let mut rotate = vecmath::mat4_id();
-	for i in 0..3 {
-		rotate[0][i] = x.0[i];
-		rotate[1][i] = y.0[i];
-		rotate[2][i] = z.0[i];
-	}
-	Transform4(rotate).mul(&Transform4(translate))
+	let rotate = &Transform4::rotate(x, y, z);
+	rotate.mul(&Transform4(translate))
 }
