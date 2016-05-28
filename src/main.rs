@@ -92,7 +92,7 @@ struct ShadowShader<'a> {
 }
 
 impl<'a> image::Shader for ShadowShader<'a> {
-	fn vertex(&mut self, idx: usize, vert: &vec::Vec3<f64>, uv: &vec::Vec3<f64>, normal: &vec::Vec3<f64>) -> vec::Vec4<f64> {
+	fn vertex(&mut self, idx: usize, vert: &vec::Vec3<f64>, _uv: &vec::Vec3<f64>, _normal: &vec::Vec3<f64>) -> vec::Vec4<f64> {
 		self.shadow_vert.set_row(idx, &vert.transform_pt(&self.shadow_transform));
 		vert.to_pt4().transform(&self.shadow_transform)
 	}
@@ -135,6 +135,7 @@ struct Shader<'a> {
 	vert_normal: vec::Mat3<f64>,
 }
 
+#[allow(dead_code)]
 enum Intensity {
 	Constant,
 	Gouraud,
@@ -147,6 +148,7 @@ enum Intensity {
 	TangentMap,
 }
 
+#[allow(dead_code)]
 enum Color {
 	White,
 	Texture,
@@ -188,7 +190,7 @@ impl<'a> image::Shader for Shader<'a> {
 		let u = (self.u.dot(bc) * self.texture.get_width() as f64).floor() as usize;
 		let v = (self.v.dot(bc) * self.texture.get_height() as f64).floor() as usize;
 		let ambient = 0f64;
-		let mut diffuse = 0f64;
+		let diffuse;
 		let mut spec = 0f64;
 		match self.intensity {
 			Intensity::Constant => {
