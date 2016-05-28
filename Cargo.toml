@@ -1,5 +1,5 @@
 [package]
-name = "rr"
+name = "tinyrenderer-rs"
 version = "0.1.0"
 authors = ["Philip Craig <philipjcraig@gmail.com>"]
 
